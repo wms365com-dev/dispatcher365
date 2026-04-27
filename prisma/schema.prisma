@@ -1,0 +1,425 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  PLATFORM_ADMIN
+  TENANT_ADMIN
+  DISPATCHER
+  WAREHOUSE
+  CUSTOMER_SERVICE
+  DRIVER
+}
+
+enum ShipmentStatus {
+  DRAFT
+  READY_FOR_BOL
+  BOL_CREATED
+  ROUTED
+  PUBLISHED
+  IN_TRANSIT
+  DELIVERED
+  EXCEPTION
+  CANCELLED
+}
+
+enum RouteStatus {
+  DRAFT
+  PUBLISHED
+  IN_TRANSIT
+  COMPLETED
+}
+
+enum RouteStopStatus {
+  PLANNED
+  PUBLISHED
+  IN_TRANSIT
+  DELIVERED
+  REFUSED
+  RETURNED
+  EXCEPTION
+}
+
+enum DeliveryEventType {
+  IN_TRANSIT
+  DELIVERED
+  PAYMENT_COLLECTED
+  RETURNED
+  REFUSED
+  EXCEPTION
+}
+
+enum LabelKind {
+  CARTON
+  PALLET
+}
+
+enum DocumentKind {
+  PACKING_SLIP
+  BOL
+  ROUTE_SHEET
+  CARTON_LABEL
+  PALLET_LABEL
+  POD_PHOTO
+  POD_SIGNATURE
+}
+
+model Tenant {
+  id          String               @id @default(cuid())
+  slug        String               @unique
+  name        String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  memberships TenantMembership[]
+  customers   Customer[]
+  carriers    Carrier[]
+  drivers     Driver[]
+  products    Product[]
+  shipments   Shipment[]
+  bills       BillOfLading[]
+  routes      RouteRun[]
+  labels      LabelJob[]
+  documents   Document[]
+  deliveryEvents DeliveryEvent[]
+  auditLogs   AuditLog[]
+}
+
+model User {
+  id            String              @id @default(cuid())
+  email         String              @unique
+  fullName      String
+  passwordHash  String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  memberships   TenantMembership[]
+  createdRoutes RouteRun[]          @relation("RouteCreatedBy")
+  auditLogs     AuditLog[]
+}
+
+model TenantMembership {
+  id        String         @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      MembershipRole
+  createdAt DateTime       @default(now())
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+}
+
+model Customer {
+  id              String             @id @default(cuid())
+  tenantId        String
+  customerCode    String
+  name            String
+  billingAddress1 String?
+  billingAddress2 String?
+  city            String?
+  state           String?
+  postalCode      String?
+  country         String?            @default("US")
+  phone           String?
+  email           String?
+  freightTerms    String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  locations       CustomerLocation[]
+  shipments       Shipment[]
+
+  @@unique([tenantId, customerCode])
+}
+
+model CustomerLocation {
+  id          String    @id @default(cuid())
+  tenantId    String
+  customerId  String
+  code        String?
+  name        String
+  address1    String
+  address2    String?
+  city        String
+  state       String
+  postalCode  String
+  country     String    @default("US")
+  phone       String?
+  email       String?
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId])
+}
+
+model Carrier {
+  id            String      @id @default(cuid())
+  tenantId      String
+  carrierCode   String
+  name          String
+  scac          String?
+  email         String?
+  phone         String?
+  contactName   String?
+  website       String?
+  isLtl         Boolean     @default(false)
+  isFtl         Boolean     @default(false)
+  isBroker      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  drivers       Driver[]
+  shipments     Shipment[]
+  routes        RouteRun[]
+
+  @@unique([tenantId, carrierCode])
+}
+
+model Driver {
+  id            String      @id @default(cuid())
+  tenantId      String
+  carrierId     String?
+  driverCode    String
+  fullName      String
+  phone         String?
+  email         String?
+  mobileToken   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  carrier       Carrier?    @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  routes        RouteRun[]
+  deliveryEvents DeliveryEvent[]
+
+  @@unique([tenantId, driverCode])
+}
+
+model Product {
+  id              String      @id @default(cuid())
+  tenantId        String
+  sku             String
+  description     String
+  productLine     String?
+  productType     String?
+  defaultWeightLb Float?
+  lengthIn        Float?
+  widthIn         Float?
+  heightIn        Float?
+  casePack        String?
+  volumeCuFt      Float?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipmentLines   ShipmentLine[]
+
+  @@unique([tenantId, sku])
+}
+
+model Shipment {
+  id               String         @id @default(cuid())
+  tenantId         String
+  customerId       String
+  carrierId        String?
+  batchId          String
+  customerPo       String?
+  salesOrder       String?
+  salesperson      String?
+  status           ShipmentStatus @default(DRAFT)
+  routedDate       DateTime?
+  shipDate         DateTime?
+  deliveryDate     DateTime?
+  deliveryWindow   String?
+  authorization    String?
+  approvedBy       String?
+  approvalNotes    String?
+  scac             String?
+  comments         String?
+  codAmount        Float?
+  units            Int            @default(0)
+  cartons          Int            @default(0)
+  pallets          Int            @default(0)
+  weightLb         Float          @default(0)
+  cubeCuFt         Float          @default(0)
+  freightClass     String?
+  emailSubject     String?
+  rfqSubject       String?
+  department       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer         Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  carrier          Carrier?       @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  lines            ShipmentLine[]
+  bol              BillOfLading?
+  labelJobs        LabelJob[]
+  routeStops       RouteStop[]
+  deliveryEvents   DeliveryEvent[]
+
+  @@unique([tenantId, batchId])
+  @@index([tenantId, status])
+}
+
+model ShipmentLine {
+  id            String    @id @default(cuid())
+  tenantId      String
+  shipmentId    String
+  productId     String?
+  itemCode      String
+  description   String?
+  cartons       Int       @default(0)
+  pallets       Int       @default(0)
+  weightLb      Float?
+  lengthIn      Float?
+  widthIn       Float?
+  heightIn      Float?
+  casePack      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipment      Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, shipmentId])
+}
+
+model BillOfLading {
+  id               String    @id @default(cuid())
+  tenantId         String
+  shipmentId       String    @unique
+  bolNumber        String
+  templateVariant  String    @default("STANDARD")
+  freightTerms     String?
+  carrierName      String?
+  trailerNumber    String?
+  sealNumber       String?
+  printedAt        DateTime?
+  emailedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipment         Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, bolNumber])
+}
+
+model RouteRun {
+  id            String      @id @default(cuid())
+  tenantId      String
+  carrierId     String?
+  driverId      String?
+  createdById   String?
+  routeDate     DateTime
+  routeName     String
+  truckCount    Int         @default(1)
+  status        RouteStatus @default(DRAFT)
+  publishedAt   DateTime?
+  mobileSyncAt  DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  carrier       Carrier?    @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  driver        Driver?     @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  createdBy     User?       @relation("RouteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  stops         RouteStop[]
+
+  @@index([tenantId, routeDate])
+}
+
+model RouteStop {
+  id            String    @id @default(cuid())
+  tenantId      String
+  routeRunId    String
+  shipmentId    String
+  stopNumber    Int
+  status        RouteStopStatus @default(PLANNED)
+  plannedStart  DateTime?
+  plannedEnd    DateTime?
+  deliveredAt   DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  routeRun      RouteRun  @relation(fields: [routeRunId], references: [id], onDelete: Cascade)
+  shipment      Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Restrict)
+  deliveryEvents DeliveryEvent[]
+
+  @@unique([routeRunId, stopNumber])
+  @@index([tenantId, shipmentId])
+}
+
+model DeliveryEvent {
+  id                String            @id @default(cuid())
+  tenantId          String
+  shipmentId        String
+  routeStopId       String?
+  driverId          String?
+  eventType         DeliveryEventType
+  eventAt           DateTime          @default(now())
+  recipientName     String?
+  note              String?
+  codAmount         Float?
+  paymentType       String?
+  proofPhotoUrl     String?
+  proofSignatureUrl String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipment          Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  routeStop         RouteStop?        @relation(fields: [routeStopId], references: [id], onDelete: SetNull)
+  driver            Driver?           @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, shipmentId])
+  @@index([tenantId, eventType, eventAt])
+}
+
+model LabelJob {
+  id            String    @id @default(cuid())
+  tenantId      String
+  shipmentId    String?
+  labelKind     LabelKind
+  quantity      Int       @default(1)
+  printedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shipment      Shipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, labelKind])
+}
+
+model Document {
+  id            String       @id @default(cuid())
+  tenantId      String
+  shipmentId    String?
+  routeRunId    String?
+  kind          DocumentKind
+  fileName      String
+  storageKey    String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, kind])
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  tenantId      String
+  userId        String?
+  entityType    String
+  entityId      String
+  action        String
+  payloadJson   String?
+  createdAt     DateTime  @default(now())
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+}
