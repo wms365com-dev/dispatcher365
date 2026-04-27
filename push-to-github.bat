@@ -70,4 +70,17 @@ if errorlevel 1 (
 )
 
 git -c safe.directory="%CD%" push -u origin main
-exit /b %errorlevel%
+if errorlevel 1 (
+  echo.
+  echo Normal push was rejected. The remote main branch already has different history.
+  set /p FORCE_PUSH=Replace remote main with this local app using force-with-lease? (Y/N):
+  if /I "%FORCE_PUSH%"=="Y" (
+    git -c safe.directory="%CD%" push --force-with-lease -u origin main
+    exit /b %errorlevel%
+  ) else (
+    echo Push canceled without overwriting remote history.
+    exit /b 1
+  )
+)
+
+exit /b 0
