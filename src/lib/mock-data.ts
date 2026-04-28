@@ -283,10 +283,10 @@ export const routeRuns: RouteRun[] = [
     palletCount: 8,
     publishedToMobileAt: "2026-04-06T16:20:00.000Z",
     stops: [
-      { id: "stop-1", shipmentBatchId: "1002512", customerCode: "BEAOUTNJ", city: "North Bergen", state: "NJ", pallets: 3, cartons: 74, stopNumber: 1 },
-      { id: "stop-2", shipmentBatchId: "1002513", customerCode: "BEAOUTNJ", city: "North Bergen", state: "NJ", pallets: 1, cartons: 30, stopNumber: 2 },
-      { id: "stop-3", shipmentBatchId: "1002541", customerCode: "UNICIT", city: "Union City", state: "NJ", pallets: 1, cartons: 35, stopNumber: 3 },
-      { id: "stop-4", shipmentBatchId: "1002549", customerCode: "HOMEGONRT", city: "North Bergen", state: "NJ", pallets: 3, cartons: 123, stopNumber: 4 }
+      { id: "stop-1", shipmentBatchId: "1002512", customerCode: "BEAOUTNJ", city: "North Bergen", state: "NJ", pallets: 3, cartons: 74, stopNumber: 1, status: "published" },
+      { id: "stop-2", shipmentBatchId: "1002513", customerCode: "BEAOUTNJ", city: "North Bergen", state: "NJ", pallets: 1, cartons: 30, stopNumber: 2, status: "published" },
+      { id: "stop-3", shipmentBatchId: "1002541", customerCode: "UNICIT", city: "Union City", state: "NJ", pallets: 1, cartons: 35, stopNumber: 3, status: "published" },
+      { id: "stop-4", shipmentBatchId: "1002549", customerCode: "HOMEGONRT", city: "North Bergen", state: "NJ", pallets: 3, cartons: 123, stopNumber: 4, status: "published" }
     ]
   },
   {
@@ -300,7 +300,7 @@ export const routeRuns: RouteRun[] = [
     stopCount: 1,
     palletCount: 1,
     stops: [
-      { id: "stop-5", shipmentBatchId: "1002558", customerCode: "NORBER", city: "North Bergen", state: "NJ", pallets: 1, cartons: 30, stopNumber: 1 }
+      { id: "stop-5", shipmentBatchId: "1002558", customerCode: "NORBER", city: "North Bergen", state: "NJ", pallets: 1, cartons: 30, stopNumber: 1, status: "planned" }
     ]
   }
 ];

@@ -117,7 +117,26 @@ const driverSeeds = [
   }
 ] as const;
 
-const shipmentSeeds = [
+type ShipmentSeed = {
+  batchId: string;
+  customerCode: string;
+  customerPo: string;
+  salesOrder: string;
+  salesperson: string;
+  status: "DRAFT" | "READY_FOR_BOL" | "BOL_CREATED" | "ROUTED" | "IN_TRANSIT";
+  shipDate: string;
+  deliveryDate: string;
+  deliveryWindow?: string;
+  carrierCode?: string;
+  comments?: string;
+  cartons: number;
+  pallets: number;
+  weightLb: number;
+  cubeCuFt: number;
+  freightClass: string;
+};
+
+const shipmentSeeds: readonly ShipmentSeed[] = [
   {
     batchId: "1002512",
     customerCode: "BEAOUTNJ",
@@ -202,7 +221,7 @@ const shipmentSeeds = [
     cubeCuFt: 45.21,
     freightClass: "125"
   }
-] as const;
+];
 
 const billSeeds = [
   { shipmentBatchId: "1002513", templateVariant: "STANDARD" },
@@ -210,7 +229,18 @@ const billSeeds = [
   { shipmentBatchId: "1002549", templateVariant: "CDN" }
 ] as const;
 
-const routeSeeds = [
+type RouteSeed = {
+  id: string;
+  routeName: string;
+  routeDate: string;
+  status: "DRAFT" | "IN_TRANSIT" | "PUBLISHED" | "COMPLETED";
+  carrierCode: string;
+  driverCode: string;
+  publishedAt?: string;
+  stopBatchIds: readonly string[];
+};
+
+const routeSeeds: readonly RouteSeed[] = [
   {
     id: "route-olj-draft",
     routeName: "OLJ North Jersey Draft Run",
@@ -230,7 +260,7 @@ const routeSeeds = [
     publishedAt: "2026-04-06T16:20:00.000Z",
     stopBatchIds: ["1002549"] as const
   }
-] as const;
+];
 
 const labelSeeds = [
   { shipmentBatchId: "1002513", labelKind: "CARTON", quantity: 30 },
@@ -260,24 +290,17 @@ export async function ensureDemoSeed() {
     create: demoTenantSeed
   });
 
-  const existingUser = await prisma.user.findUnique({
-    where: { email: demoUserSeed.email }
+  const user = await prisma.user.upsert({
+    where: { email: demoUserSeed.email },
+    update: {
+      fullName: demoUserSeed.fullName,
+      passwordHash: createPasswordHash(demoCredentials.password)
+    },
+    create: {
+      ...demoUserSeed,
+      passwordHash: createPasswordHash(demoCredentials.password)
+    }
   });
-
-  const user = existingUser
-    ? await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          fullName: demoUserSeed.fullName,
-          passwordHash: existingUser.passwordHash ?? createPasswordHash(demoCredentials.password)
-        }
-      })
-    : await prisma.user.create({
-        data: {
-          ...demoUserSeed,
-          passwordHash: createPasswordHash(demoCredentials.password)
-        }
-      });
 
   await prisma.tenantMembership.upsert({
     where: {
@@ -374,9 +397,8 @@ export async function ensureDemoSeed() {
       continue;
     }
 
-    const carrierId = shipmentSeed.carrierCode
-      ? carrierMap.get(shipmentSeed.carrierCode)
-      : undefined;
+    const carrierCode = "carrierCode" in shipmentSeed ? shipmentSeed.carrierCode : undefined;
+    const carrierId = carrierCode ? carrierMap.get(carrierCode) : undefined;
 
     await prisma.shipment.upsert({
       where: {

@@ -10,6 +10,8 @@ interface DispatchLayoutProps {
   children: ReactNode;
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function DispatchLayout({ children }: DispatchLayoutProps) {
   const { tenant, user, role } = await getAppContext();
   const roleLabel = role
