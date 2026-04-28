@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { access } from "node:fs/promises";
+import { constants } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 function runNodeScript(scriptPath, args = []) {
@@ -29,14 +31,17 @@ async function main() {
     process.exit(1);
   }
 
-  const prismaCli = fileURLToPath(new URL("../node_modules/prisma/build/index.js", import.meta.url));
-  const nextCli = fileURLToPath(new URL("../node_modules/next/dist/bin/next", import.meta.url));
+  const nextCli = new URL("../node_modules/next/dist/bin/next", import.meta.url);
 
-  console.log("Applying Prisma schema...");
-  await runNodeScript(prismaCli, ["db", "push", "--skip-generate"]);
+  try {
+    await access(nextCli, constants.F_OK);
+  } catch {
+    console.error("Next.js runtime binary was not found. Ensure dependencies were installed during build.");
+    process.exit(1);
+  }
 
   console.log(`Starting Next.js on port ${port}...`);
-  const child = spawn(process.execPath, [nextCli, "start", "-H", "0.0.0.0", "-p", port], {
+  const child = spawn(process.execPath, [fileURLToPath(nextCli), "start", "-H", "0.0.0.0", "-p", port], {
     stdio: "inherit",
     env: process.env
   });
