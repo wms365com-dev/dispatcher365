@@ -97,7 +97,16 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
           <form action={generateBillOfLadingAction} className="field-grid">
             <label className="field">
               <span>Batch ID</span>
-              <input name="batchId" list="ready-batches" placeholder="1002512" required />
+              <select name="batchId" defaultValue="" required>
+                <option value="" disabled>
+                  Choose a batch waiting for BOL
+                </option>
+                {readyShipments.map((shipment) => (
+                  <option key={shipment.id} value={shipment.batchId}>
+                    {shipment.batchId} - {shipment.customer.customerCode} / {shipment.customer.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="field">
               <span>Template</span>
@@ -109,17 +118,10 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
               </select>
             </label>
             <div className="field field--wide form-actions">
-              <button className="button" type="submit">
+              <button className="button" type="submit" disabled={readyShipments.length === 0}>
                 Generate BOL
               </button>
             </div>
-            <datalist id="ready-batches">
-              {readyShipments.map((shipment) => (
-                <option key={shipment.id} value={shipment.batchId}>
-                  {shipment.customer.customerCode}
-                </option>
-              ))}
-            </datalist>
           </form>
         </SectionCard>
       </div>
