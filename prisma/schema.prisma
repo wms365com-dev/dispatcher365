@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -77,12 +77,15 @@ model Tenant {
   updatedAt   DateTime             @updatedAt
   memberships TenantMembership[]
   customers   Customer[]
+  locations   CustomerLocation[]
   carriers    Carrier[]
   drivers     Driver[]
   products    Product[]
   shipments   Shipment[]
+  shipmentLines ShipmentLine[]
   bills       BillOfLading[]
   routes      RouteRun[]
+  routeStops  RouteStop[]
   labels      LabelJob[]
   documents   Document[]
   deliveryEvents DeliveryEvent[]

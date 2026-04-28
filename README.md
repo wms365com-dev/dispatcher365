@@ -6,11 +6,11 @@ This folder contains the first working phase of the Next.js + TypeScript rebuild
 
 - App Router shell and dispatch workspace
 - Workbook-informed pages for packing slips, customers, carriers, BOLs, labels, routes, and freight
-- Tenant-aware SQLite/Prisma data layer with automatic demo tenant seeding
+- Tenant-aware PostgreSQL/Prisma data layer with automatic demo tenant seeding
 - Server actions for creating customers, carriers, drivers, shipments, BOLs, and route runs
 - Formula conversion utilities in `src/lib/workbook/formulas.ts`
 - API routes backed by the same services used by the UI
-- Prisma schema using SQLite first with a clean migration path to PostgreSQL
+- Prisma schema configured for PostgreSQL, which matches the Railway production target
 
 ## Local setup
 
@@ -32,18 +32,12 @@ Deploy the app from [modern-app](/E:/aesonretailsolutions/modern-app) as the pro
 Required Railway variables:
 
 - `DATABASE_URL`
-- `AUTH_SECRET`
+- `AUTH_SECRET` or `JWT_SECRET`
 - `ENABLE_DEMO_SEED`
 
-Current database note:
+Recommended Railway env values:
 
-- The app is still using SQLite for this phase.
-- On Railway, SQLite should point at a mounted volume path such as `file:/data/wms365-dispatch.db`.
-- This is acceptable for staging while we finish the rebuild, but the real production target should be Railway PostgreSQL.
-
-Recommended Railway env values for staging:
-
-- `DATABASE_URL=file:/data/wms365-dispatch.db`
+- `DATABASE_URL=<Railway Postgres connection string>`
 - `AUTH_SECRET=<long-random-secret>`
 - `ENABLE_DEMO_SEED=true`
 
@@ -55,9 +49,9 @@ Useful endpoints after deploy:
 
 ## Notes
 
-- The core dispatch pages now read and write real SQLite data through Prisma.
+- The core dispatch pages now read and write real PostgreSQL data through Prisma.
 - The app auto-seeds a demo tenant (`wms365-demo`) and dispatch user on first run so the workflow can be tested immediately.
 - Demo seeding is controlled by `ENABLE_DEMO_SEED`; leave it on locally and turn it off in production.
 - Sign-in is now session-based, so the dispatch workspace redirects to `/sign-in` until a valid session exists.
 - Labels, print templates, auth, and the mobile driver workflow are still the next phases.
-- Keep all tenant filtering on the server side even after moving to PostgreSQL.
+- Keep all tenant filtering on the server side.

@@ -15,7 +15,7 @@ interface SessionPayload {
 }
 
 function getSessionSecret() {
-  return process.env.AUTH_SECRET ?? "dev-only-wms365-dispatch-secret";
+  return process.env.AUTH_SECRET ?? process.env.JWT_SECRET ?? "dev-only-wms365-dispatch-secret";
 }
 
 function signValue(value: string) {

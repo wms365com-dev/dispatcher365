@@ -5,28 +5,28 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "build": "next build",
-    "build:railway": "prisma generate && next build",
+    "build": "next build --webpack",
+    "build:railway": "prisma generate && next build --webpack",
     "start": "next start",
     "start:railway": "node scripts/railway-start.mjs",
     "db:push": "prisma db push",
     "db:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "zod": "latest"
+    "@prisma/client": "6.19.3",
+    "next": "16.2.2",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "4.3.6"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "prisma": "latest",
-    "typescript": "latest"
+    "@types/node": "25.5.2",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "prisma": "6.19.3",
+    "typescript": "6.0.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   }
 }
