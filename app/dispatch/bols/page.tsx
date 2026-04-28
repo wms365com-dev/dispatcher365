@@ -5,11 +5,20 @@ import { StatusPill } from "@/components/status-pill";
 import { generateBillOfLadingAction } from "@/lib/server/dispatch-actions";
 import { getBolsData } from "@/lib/server/dispatch-service";
 
+interface BolsPageProps {
+  searchParams?: Promise<{
+    error?: string;
+    batchId?: string;
+    generated?: string;
+  }>;
+}
+
 function formatDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
 
-export default async function BolsPage() {
+export default async function BolsPage({ searchParams }: BolsPageProps) {
+  const params = searchParams ? await searchParams : undefined;
   const { readyShipments, bills } = await getBolsData();
 
   const readyRows = readyShipments.map((shipment) => ({
@@ -38,6 +47,29 @@ export default async function BolsPage() {
         title="Bill of Lading Workbench"
         description="This module now generates persistent BOL records and advances the shipment to the next stage of the workflow."
       />
+
+      {params?.generated ? (
+        <SectionCard
+          title="BOL Generated"
+          description="The batch moved forward in the workflow and is now available for route planning."
+        >
+          <p className="helper-text">
+            Batch <strong>{params.batchId ?? "-"}</strong> was assigned BOL <strong>{params.generated}</strong>.
+          </p>
+        </SectionCard>
+      ) : null}
+
+      {params?.error === "shipment-not-found" ? (
+        <SectionCard
+          title="BOL Notice"
+          description="The requested batch could not be matched to a tenant-owned shipment."
+        >
+          <p className="helper-text">
+            We could not find batch <strong>{params.batchId ?? "-"}</strong>. Use a batch from the Ready for BOL queue,
+            or create the shipment first.
+          </p>
+        </SectionCard>
+      ) : null}
 
       <div className="split-grid">
         <SectionCard

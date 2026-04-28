@@ -1,5 +1,7 @@
 "use server";
 
+"use server";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -57,11 +59,20 @@ export async function createShipmentAction(formData: FormData) {
 }
 
 export async function generateBillOfLadingAction(formData: FormData) {
-  await generateBillOfLading(toFormObject(formData));
+  const payload = toFormObject(formData);
+  const bill = await generateBillOfLading(payload);
+
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/bols");
   revalidatePath("/dispatch/routes");
-  redirect("/dispatch/bols");
+
+  const batchId = typeof payload.batchId === "string" ? encodeURIComponent(payload.batchId) : "";
+
+  if (!bill) {
+    redirect(`/dispatch/bols?error=shipment-not-found&batchId=${batchId}`);
+  }
+
+  redirect(`/dispatch/bols?generated=${encodeURIComponent(bill.bolNumber)}&batchId=${batchId}`);
 }
 
 export async function createRouteRunAction(formData: FormData) {
