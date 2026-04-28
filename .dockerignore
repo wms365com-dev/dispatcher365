@@ -1,0 +1,9 @@
+node_modules
+.next
+.npm-cache
+.git
+.gitignore
+.tmp-railway-start.out
+.tmp-railway-start.err
+README.md
+push-to-github.bat
