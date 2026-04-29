@@ -49,12 +49,12 @@ export function AppShell({
                     <Link
                       key={item.href}
                       href={item.href as Route}
+                      title={item.description}
                       className={`dispatch-nav__item${active ? " dispatch-nav__item--active" : ""}`}
                     >
                       <span className="dispatch-nav__badge">{item.shortLabel}</span>
                       <span>
                         <strong>{item.label}</strong>
-                        <small>{item.description}</small>
                       </span>
                     </Link>
                   );
