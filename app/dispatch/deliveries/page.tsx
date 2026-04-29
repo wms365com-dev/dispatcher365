@@ -41,9 +41,9 @@ export default async function DeliveriesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Last-mile execution"
-        title="Deliveries"
-        description="This closes the missing leg from the legacy system: published route stops can now move into transit, complete with proof and exception events, using tenant-safe records."
+        eyebrow="Delivered orders"
+        title="Delivered Orders"
+        description="This is the rebuilt delivery-history and proof layer that follows the live truck-run completion flow."
       />
 
       <SectionCard

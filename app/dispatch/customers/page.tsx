@@ -20,9 +20,9 @@ export default async function CustomersPage() {
   return (
     <>
       <PageHeader
-        eyebrow="CDS + customer lookup"
-        title="Customer Management"
-        description="This is the tenant-safe replacement for the worksheet customer list and the old customer maintenance screens."
+        eyebrow="Customer"
+        title="Customer Lookup & Entry"
+        description="This follows the live system's customer module: maintain tenant-owned customers, then reuse them during packing slip and BOL work."
       />
 
       <div className="split-grid">

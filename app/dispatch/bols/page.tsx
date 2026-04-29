@@ -43,9 +43,9 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   return (
     <>
       <PageHeader
-        eyebrow="BOL input + form generation"
-        title="Bill of Lading Workbench"
-        description="This module now generates persistent BOL records and advances the shipment to the next stage of the workflow."
+        eyebrow="BOL"
+        title="Bill of Lading"
+        description="This follows the live BOL flow: select a batch from the packing queue, generate the record, then hand it forward to truck run planning."
       />
 
       {params?.generated ? (

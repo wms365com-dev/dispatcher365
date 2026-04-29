@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { dispatchNavigation } from "@/lib/navigation";
+import { dispatchNavigationSections } from "@/lib/navigation";
 
 interface AppShellProps {
   children: ReactNode;
@@ -37,23 +38,30 @@ export function AppShell({
         </div>
 
         <nav className="dispatch-nav" aria-label="Dispatch modules">
-          {dispatchNavigation.map((item) => {
-            const active = pathname === item.href;
+          {dispatchNavigationSections.map((section) => (
+            <div className="dispatch-nav__section" key={section.title}>
+              <p className="dispatch-nav__section-title">{section.title}</p>
+              <div className="dispatch-nav__section-items">
+                {section.items.map((item) => {
+                  const active = pathname === item.href;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`dispatch-nav__item${active ? " dispatch-nav__item--active" : ""}`}
-              >
-                <span className="dispatch-nav__badge">{item.shortLabel}</span>
-                <span>
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </span>
-              </Link>
-            );
-          })}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href as Route}
+                      className={`dispatch-nav__item${active ? " dispatch-nav__item--active" : ""}`}
+                    >
+                      <span className="dispatch-nav__badge">{item.shortLabel}</span>
+                      <span>
+                        <strong>{item.label}</strong>
+                        <small>{item.description}</small>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 

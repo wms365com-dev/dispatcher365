@@ -21,9 +21,9 @@ export default async function LabelsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Carton + pallet labels"
-        title="Label Generator"
-        description="Label jobs now come from the same tenant-owned shipment data model as the rest of dispatch."
+        eyebrow="Print label"
+        title="Print Labels"
+        description="This is the rebuild target for the live simple, item, and mixed-case label screens."
       />
 
       <SectionCard

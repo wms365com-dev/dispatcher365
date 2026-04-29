@@ -27,9 +27,9 @@ export default async function CarriersPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Carrier + driver master data"
+        eyebrow="Carriers"
         title="Carriers & Drivers"
-        description="Carrier assignment and driver readiness now live in relational tables instead of separate maintenance pages and workbook tabs."
+        description="This mirrors the live carrier maintenance flow while keeping drivers ready for truck runs and future mobile dispatch."
       />
 
       <div className="split-grid">

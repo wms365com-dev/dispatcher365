@@ -39,9 +39,9 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
   return (
     <>
       <PageHeader
-        eyebrow="Enter packing slip"
-        title="Packing Slips"
-        description="Shipment intake now persists to the database and feeds the rest of the workflow instead of acting like a temporary worksheet row."
+        eyebrow="Packing slip"
+        title="Enter Packing Slip"
+        description="This is the rebuilt intake screen from the live Healtea system, where shipment entry starts the entire dispatch workflow."
       />
 
       <SectionCard

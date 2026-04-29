@@ -1,3 +1,6 @@
+import Link from "next/link";
+import type { Route } from "next";
+
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
@@ -28,9 +31,9 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Phase 1 build"
-        title="Dispatch Dashboard"
-        description="This is now backed by the database instead of worksheet mock data, so the counts and queues reflect the records created in the app."
+        eyebrow="Main screen"
+        title="Dispatch Main Screen"
+        description="This dashboard is now aligned to the live Healtea workflow: choose the tenant, enter packing slips, generate the BOL, build the truck run, then publish and complete delivery."
       />
 
       <div className="summary-grid">
@@ -59,7 +62,7 @@ export default async function DashboardPage() {
       <div className="split-grid">
         <SectionCard
           title="Live Dispatch Queue"
-          description="Recent shipment activity coming from SQLite through Prisma."
+          description="Recent shipment activity coming from the rebuilt tenant-scoped database."
         >
           <SimpleTable
             columns={[
@@ -76,15 +79,27 @@ export default async function DashboardPage() {
         </SectionCard>
 
         <SectionCard
-          title="Workflow Check"
-          description="The old workbook and Laravel site had the right operational steps, but not always the right boundaries."
+          title="Live System Workflow"
+          description="These are the actual operational steps traced from the original Healtea tenant."
         >
           <ul className="note-list">
-            <li>Customer, carrier, driver, shipment, BOL, and route records are all tenant-scoped.</li>
-            <li>Shipment entry now feeds a defined status flow: Ready for BOL, BOL Created, Routed, Published, In Transit, Delivered or Exception.</li>
-            <li>Route publishing is its own step so the future driver mobile app has a clean handoff point.</li>
-            <li>Delivery events now sit in a dedicated execution layer instead of being hidden inside shipment status changes alone.</li>
+            <li>Enter the shipment in <strong>Packing Slip</strong>.</li>
+            <li>Move the batch into <strong>BOL</strong> once intake is complete.</li>
+            <li>Create the <strong>Truck Run</strong> after BOL generation.</li>
+            <li>Publish the route, then complete proof and exceptions in <strong>Delivered Orders</strong>.</li>
+            <li>Print carton and pallet output from <strong>Print Label</strong>.</li>
           </ul>
+          <div className="landing__actions">
+            <Link className="button" href={"/dispatch/packing-slips" as Route}>
+              Open Packing Slip
+            </Link>
+            <Link className="button button--ghost" href={"/dispatch/bols" as Route}>
+              Open BOL
+            </Link>
+            <Link className="button button--ghost" href={"/dispatch/routes" as Route}>
+              Open Truck Run
+            </Link>
+          </div>
         </SectionCard>
       </div>
 
@@ -92,12 +107,12 @@ export default async function DashboardPage() {
         <SummaryCard
           label="Routed"
           value={String(metrics.routedCount)}
-          footnote="Shipments already staged into a route run."
+          footnote="Shipments already staged into a truck run."
         />
         <SummaryCard
           label="Published routes"
           value={String(metrics.publishedRouteCount)}
-          footnote="Runs ready for driver sync and route-sheet output."
+          footnote="Truck runs ready for driver sync and route-sheet output."
         />
       </div>
     </>

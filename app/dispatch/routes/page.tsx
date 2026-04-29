@@ -62,9 +62,9 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   return (
     <>
       <PageHeader
-        eyebrow="Truck runs"
-        title="Route Planning"
-        description="Route runs are now first-class records tied to specific shipments, carriers, and drivers instead of spreadsheet copies."
+        eyebrow="Truck run"
+        title="Truck Run Planning"
+        description="This is the rebuilt version of the live truck-run module: assign carrier and driver, group BOL-created batches, then publish the run."
       />
 
       {routeIssue ? (
