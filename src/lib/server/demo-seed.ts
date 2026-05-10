@@ -10,10 +10,32 @@ import { createPasswordHash } from "./password";
 export const demoSeedingEnabled =
   process.env.ENABLE_DEMO_SEED === "true" || process.env.NODE_ENV !== "production";
 
-const demoTenantSeed = {
-  slug: "wms365-demo",
-  name: "WMS 365 Dispatch Demo"
-};
+const demoTenantSeeds = [
+  {
+    slug: "healtea",
+    name: "Healtea",
+    warehouseName: "Healtea Distribution",
+    warehouseAddress1: "2820 16th Street, Building C",
+    warehouseCity: "North Bergen",
+    warehouseState: "NJ",
+    warehousePostalCode: "07047",
+    warehouseCountry: "US",
+    warehousePhone: "(201) 330-1900",
+    warehouseFob: "D"
+  },
+  {
+    slug: "rootree",
+    name: "Rootree",
+    warehouseName: "Rootree Warehouse",
+    warehouseAddress1: "15295 John Lucas Dr",
+    warehouseCity: "Burlington",
+    warehouseState: "ON",
+    warehousePostalCode: "L7L6A8",
+    warehouseCountry: "CA",
+    warehousePhone: "833-766-8733",
+    warehouseFob: "D"
+  }
+] as const;
 
 const demoUserSeed = {
   email: "dispatch@wms365.co",
@@ -102,6 +124,21 @@ const carrierSeeds = [
   }
 ] as const;
 
+const salesRepSeeds = [
+  {
+    repCode: "ZE47",
+    fullName: "Zoe Edwards",
+    email: "zoe.edwards@example.com",
+    phone: "(201) 555-0181"
+  },
+  {
+    repCode: "JB01",
+    fullName: "Jack Basoul",
+    email: "jack.basoul@example.com",
+    phone: "(201) 555-0141"
+  }
+] as const;
+
 const driverSeeds = [
   {
     driverCode: "ANDRE",
@@ -114,6 +151,37 @@ const driverSeeds = [
     fullName: "Luis Rojas",
     carrierCode: "OLJ",
     phone: "(917) 555-0144"
+  }
+] as const;
+
+const productSeeds = [
+  {
+    sku: "PLT-CARTON-001",
+    description: "Houseware Master Carton",
+    productLine: "Houseware",
+    productType: "Carton",
+    packageType: "CTN",
+    nmfcCode: "049390-06",
+    defaultWeightLb: 20,
+    lengthIn: 24,
+    widthIn: 18,
+    heightIn: 16,
+    casePack: "1",
+    volumeCuFt: 4
+  },
+  {
+    sku: "PLT-PALLET-001",
+    description: "Standard Routed Pallet",
+    productLine: "Houseware",
+    productType: "Pallet",
+    packageType: "PLT",
+    nmfcCode: "049390-06",
+    defaultWeightLb: 550,
+    lengthIn: 48,
+    widthIn: 40,
+    heightIn: 56,
+    casePack: "1",
+    volumeCuFt: 62.22
   }
 ] as const;
 
@@ -263,8 +331,8 @@ const routeSeeds: readonly RouteSeed[] = [
 ];
 
 const labelSeeds = [
-  { shipmentBatchId: "1002513", labelKind: "CARTON", quantity: 30 },
-  { shipmentBatchId: "1002513", labelKind: "PALLET", quantity: 1 }
+  { shipmentBatchId: "1002513", labelKind: "CARTON", templateVariant: "SIMPLE", quantity: 30 },
+  { shipmentBatchId: "1002513", labelKind: "PALLET", templateVariant: "ITEM", quantity: 1 }
 ] as const;
 
 const deliveryEventSeeds = [
@@ -284,11 +352,17 @@ export async function ensureDemoSeed() {
     return null;
   }
 
-  const tenant = await prisma.tenant.upsert({
-    where: { slug: demoTenantSeed.slug },
-    update: { name: demoTenantSeed.name },
-    create: demoTenantSeed
-  });
+  const seededTenants = [];
+  for (const tenantSeed of demoTenantSeeds) {
+    const tenant = await prisma.tenant.upsert({
+      where: { slug: tenantSeed.slug },
+      update: tenantSeed,
+      create: tenantSeed
+    });
+    seededTenants.push(tenant);
+  }
+
+  const tenant = seededTenants[0];
 
   const user = await prisma.user.upsert({
     where: { email: demoUserSeed.email },
@@ -302,23 +376,25 @@ export async function ensureDemoSeed() {
     }
   });
 
-  await prisma.tenantMembership.upsert({
-    where: {
-      tenantId_userId: {
-        tenantId: tenant.id,
-        userId: user.id
+  for (const seededTenant of seededTenants) {
+    await prisma.tenantMembership.upsert({
+      where: {
+        tenantId_userId: {
+          tenantId: seededTenant.id,
+          userId: user.id
+        }
+      },
+      update: { role: "PLATFORM_ADMIN" },
+      create: {
+        tenantId: seededTenant.id,
+        userId: user.id,
+        role: "PLATFORM_ADMIN"
       }
-    },
-    update: { role: "TENANT_ADMIN" },
-    create: {
-      tenantId: tenant.id,
-      userId: user.id,
-      role: "TENANT_ADMIN"
-    }
-  });
+    });
+  }
 
   for (const customerSeed of customerSeeds) {
-    await prisma.customer.upsert({
+    const customer = await prisma.customer.upsert({
       where: {
         tenantId_customerCode: {
           tenantId: tenant.id,
@@ -329,6 +405,37 @@ export async function ensureDemoSeed() {
       create: {
         tenantId: tenant.id,
         ...customerSeed
+      }
+    });
+
+    await prisma.customerLocation.upsert({
+      where: { id: `${tenant.slug}-${customerSeed.customerCode}-default` },
+      update: {
+        tenantId: tenant.id,
+        customerId: customer.id,
+        code: customerSeed.customerCode,
+        name: customerSeed.name,
+        address1: customerSeed.billingAddress1,
+        city: customerSeed.city,
+        state: customerSeed.state,
+        postalCode: customerSeed.postalCode,
+        country: "US",
+        phone: customerSeed.phone,
+        isDefault: true
+      },
+      create: {
+        id: `${tenant.slug}-${customerSeed.customerCode}-default`,
+        tenantId: tenant.id,
+        customerId: customer.id,
+        code: customerSeed.customerCode,
+        name: customerSeed.name,
+        address1: customerSeed.billingAddress1,
+        city: customerSeed.city,
+        state: customerSeed.state,
+        postalCode: customerSeed.postalCode,
+        country: "US",
+        phone: customerSeed.phone,
+        isDefault: true
       }
     });
   }
@@ -345,6 +452,38 @@ export async function ensureDemoSeed() {
       create: {
         tenantId: tenant.id,
         ...carrierSeed
+      }
+    });
+  }
+
+  for (const salesRepSeed of salesRepSeeds) {
+    await prisma.salesRep.upsert({
+      where: {
+        tenantId_repCode: {
+          tenantId: tenant.id,
+          repCode: salesRepSeed.repCode
+        }
+      },
+      update: salesRepSeed,
+      create: {
+        tenantId: tenant.id,
+        ...salesRepSeed
+      }
+    });
+  }
+
+  for (const productSeed of productSeeds) {
+    await prisma.product.upsert({
+      where: {
+        tenantId_sku: {
+          tenantId: tenant.id,
+          sku: productSeed.sku
+        }
+      },
+      update: productSeed,
+      create: {
+        tenantId: tenant.id,
+        ...productSeed
       }
     });
   }
@@ -612,6 +751,7 @@ export async function ensureDemoSeed() {
         tenantId: tenant.id,
         shipmentId: shipment.id,
         labelKind: labelSeed.labelKind,
+        templateVariant: labelSeed.templateVariant,
         quantity: labelSeed.quantity
       },
       create: {
@@ -619,6 +759,7 @@ export async function ensureDemoSeed() {
         tenantId: tenant.id,
         shipmentId: shipment.id,
         labelKind: labelSeed.labelKind,
+        templateVariant: labelSeed.templateVariant,
         quantity: labelSeed.quantity
       }
     });

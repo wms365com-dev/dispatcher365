@@ -1,7 +1,10 @@
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
-import { createCarrierAction, createDriverAction } from "@/lib/server/dispatch-actions";
+import {
+  createCarrierAction,
+  createDriverAction
+} from "@/lib/server/dispatch-actions";
 import { getCarriersData } from "@/lib/server/dispatch-service";
 
 export default async function CarriersPage() {
@@ -9,17 +12,20 @@ export default async function CarriersPage() {
 
   const carrierRows = carriers.map((carrier) => ({
     code: carrier.carrierCode,
-    name: carrier.name,
-    scac: carrier.scac ?? "-",
-    phone: carrier.phone ?? "-",
-    email: carrier.email ?? "-",
-    drivers: String(carrier._count.drivers)
+    companyName: carrier.name,
+    address: carrier.address1 ?? "-",
+    city: carrier.city ?? "-",
+    state: carrier.state ?? "-",
+    postalCode: carrier.postalCode ?? "-",
+    tel: carrier.phone ?? "-",
+    cell: carrier.cell ?? "-",
+    email: carrier.email ?? "-"
   }));
 
   const driverRows = drivers.map((driver) => ({
     code: driver.driverCode,
     name: driver.fullName,
-    carrier: driver.carrier?.carrierCode ?? "Unassigned",
+    carrier: driver.carrier?.carrierCode ?? "-",
     phone: driver.phone ?? "-",
     email: driver.email ?? "-"
   }));
@@ -28,83 +34,125 @@ export default async function CarriersPage() {
     <>
       <PageHeader
         eyebrow="Carriers"
-        title="Carriers & Drivers"
-        description="This mirrors the live carrier maintenance flow while keeping drivers ready for truck runs and future mobile dispatch."
+        title="Carrier Info"
+        description="This matches the old carrier module more closely: add the trucking company, keep richer dispatch contact details, then attach drivers for truck runs."
       />
 
-      <div className="split-grid">
+      <div className="legacy-page-grid">
         <SectionCard
-          title="Carrier Directory"
-          description="Carriers are tenant-owned and reused across shipments, BOLs, and route runs."
+          title="Use Form Input"
+          description="Enter the trucking company details in the same two-column style the original system used."
         >
-          <SimpleTable
-            columns={[
-              { key: "code", label: "Code" },
-              { key: "name", label: "Company" },
-              { key: "scac", label: "SCAC" },
-              { key: "phone", label: "Phone" },
-              { key: "email", label: "Email" },
-              { key: "drivers", label: "Drivers" }
-            ]}
-            rows={carrierRows}
-            emptyMessage="No carriers have been added for this tenant yet."
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Add Carrier"
-          description="This is the clean replacement for the old carrier add/edit workflow."
-        >
-          <form action={createCarrierAction} className="field-grid">
+          <form action={createCarrierAction} className="legacy-form-grid">
             <label className="field">
-              <span>Carrier code</span>
+              <span>Company Code</span>
               <input name="carrierCode" placeholder="OLJ" required />
             </label>
             <label className="field">
-              <span>Company name</span>
+              <span>Cell</span>
+              <input name="cell" placeholder="4163335600" />
+            </label>
+            <label className="field">
+              <span>Name</span>
               <input name="name" placeholder="Oljeje Transport" required />
             </label>
             <label className="field">
-              <span>SCAC</span>
-              <input name="scac" placeholder="OLJT" />
-            </label>
-            <label className="field">
-              <span>Dispatch phone</span>
-              <input name="phone" placeholder="4165550199" />
-            </label>
-            <label className="field">
-              <span>Dispatch email</span>
+              <span>Email</span>
               <input name="email" type="email" placeholder="dispatch@example.com" />
             </label>
             <label className="field">
-              <span>Contact name</span>
-              <input name="contactName" placeholder="Carrier Ops" />
+              <span>Address</span>
+              <input name="address1" placeholder="5320 Finch Ave E Unit 7" />
+            </label>
+            <label className="field">
+              <span>Website</span>
+              <input name="website" placeholder="https://carrier.example.com" />
+            </label>
+            <label className="field">
+              <span>Address 2</span>
+              <input name="address2" placeholder="Dock or Suite" />
+            </label>
+            <label className="field">
+              <span>Website Pick Up</span>
+              <input name="websitePickup" placeholder="https://carrier.example.com/pickup" />
+            </label>
+            <label className="field">
+              <span>City</span>
+              <input name="city" placeholder="Scarborough" />
+            </label>
+            <label className="field">
+              <span>SCAC Code</span>
+              <input name="scac" placeholder="OLJT" />
+            </label>
+            <label className="field">
+              <span>State</span>
+              <input name="state" placeholder="ON" />
             </label>
             <label className="checkbox-field">
               <input name="isLtl" type="checkbox" />
-              <span>LTL carrier</span>
+              <span>LTL</span>
+            </label>
+            <label className="field">
+              <span>Zipcode</span>
+              <input name="postalCode" placeholder="M1S5G3" />
             </label>
             <label className="checkbox-field">
               <input name="isFtl" type="checkbox" />
-              <span>FTL carrier</span>
+              <span>FTL</span>
+            </label>
+            <label className="field">
+              <span>Telephone</span>
+              <input name="phone" placeholder="4163353600" />
             </label>
             <label className="checkbox-field">
               <input name="isBroker" type="checkbox" />
               <span>Broker</span>
             </label>
+            <label className="field">
+              <span>Fax</span>
+              <input name="fax" placeholder="4163353610" />
+            </label>
+            <label className="field">
+              <span>Contact</span>
+              <input name="contactName" placeholder="Dispatch Desk" />
+            </label>
             <div className="field field--wide form-actions">
               <button className="button" type="submit">
-                Save carrier
+                Submit Form
+              </button>
+              <button className="button button--ghost" type="reset">
+                Reset
               </button>
             </div>
           </form>
         </SectionCard>
+
+        <SectionCard
+          title="Carriers List"
+          description="This list mirrors the old carrier lookup table and keeps the fields dispatch actually scans."
+        >
+          <SimpleTable
+            columns={[
+              { key: "code", label: "Code" },
+              { key: "companyName", label: "Company Name" },
+              { key: "address", label: "Address" },
+              { key: "city", label: "City" },
+              { key: "state", label: "State" },
+              { key: "postalCode", label: "Zipcode" },
+              { key: "tel", label: "Tel" },
+              { key: "cell", label: "Cell" },
+              { key: "email", label: "Email" }
+            ]}
+            rows={carrierRows}
+            emptyMessage="No carriers have been added for this tenant yet."
+          />
+        </SectionCard>
       </div>
 
-      <div className="split-grid">
+      <div className="legacy-page-grid">
         <SectionCard
           title="Drivers"
-          description="Drivers are the future mobile recipients for published routes."
+          description="Drivers remain separate from carrier records so routes can be assigned and later synced to mobile."
         >
           <SimpleTable
             columns={[
@@ -121,20 +169,20 @@ export default async function CarriersPage() {
 
         <SectionCard
           title="Add Driver"
-          description="Attach a driver to a carrier now so route publishing has a clear target."
+          description="This keeps the route-run assignment flow simple: pick a carrier, then pick the driver already attached to it."
         >
-          <form action={createDriverAction} className="field-grid">
+          <form action={createDriverAction} className="legacy-form-grid">
             <label className="field">
-              <span>Driver code</span>
+              <span>Driver Code</span>
               <input name="driverCode" placeholder="LUIS" required />
             </label>
             <label className="field">
-              <span>Driver name</span>
-              <input name="fullName" placeholder="Luis Rojas" required />
+              <span>Carrier Code</span>
+              <input name="carrierCode" list="carrier-codes" placeholder="OLJ" />
             </label>
             <label className="field">
-              <span>Carrier code</span>
-              <input name="carrierCode" list="carrier-codes" placeholder="OLJ" />
+              <span>Full Name</span>
+              <input name="fullName" placeholder="Luis Rojas" required />
             </label>
             <label className="field">
               <span>Phone</span>
@@ -146,7 +194,10 @@ export default async function CarriersPage() {
             </label>
             <div className="field field--wide form-actions">
               <button className="button" type="submit">
-                Save driver
+                Submit Form
+              </button>
+              <button className="button button--ghost" type="reset">
+                Reset
               </button>
             </div>
             <datalist id="carrier-codes">

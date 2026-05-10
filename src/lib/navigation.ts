@@ -122,5 +122,24 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         icon: "calculator"
       }
     ]
+  },
+  {
+    title: "Administration",
+    items: [
+      {
+        href: "/dispatch/users",
+        label: "User Manage",
+        shortLabel: "UM",
+        description: "User roles, approvals, and tenant membership.",
+        icon: "customer"
+      },
+      {
+        href: "/dispatch/companies",
+        label: "Company Manage",
+        shortLabel: "CM",
+        description: "Company records and warehouse setup.",
+        icon: "briefcase"
+      }
+    ]
   }
 ] as const;

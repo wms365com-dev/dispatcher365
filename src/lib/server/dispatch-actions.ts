@@ -1,18 +1,21 @@
 "use server";
 
-"use server";
-
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
   createCarrier,
+  createCompany,
   createCustomer,
   createDriver,
+  createProduct,
   createRouteRun,
+  createSalesRep,
   createShipment,
+  createUserAccount,
   generateBillOfLading,
   publishRouteRun,
+  queueLabelJob,
   recordDeliveryEvent
 } from "@/lib/server/dispatch-service";
 
@@ -35,12 +38,28 @@ export async function createCarrierAction(formData: FormData) {
   redirect("/dispatch/carriers");
 }
 
+export async function createSalesRepAction(formData: FormData) {
+  await createSalesRep(toFormObject(formData));
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/sales-reps");
+  revalidatePath("/dispatch/packing-slips");
+  redirect("/dispatch/sales-reps");
+}
+
 export async function createDriverAction(formData: FormData) {
   await createDriver(toFormObject(formData));
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/carriers");
   revalidatePath("/dispatch/routes");
   redirect("/dispatch/carriers");
+}
+
+export async function createProductAction(formData: FormData) {
+  await createProduct(toFormObject(formData));
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/carton-info");
+  revalidatePath("/dispatch/labels");
+  redirect("/dispatch/carton-info");
 }
 
 export async function createShipmentAction(formData: FormData) {
@@ -95,6 +114,13 @@ export async function publishRouteRunAction(formData: FormData) {
   redirect("/dispatch/routes");
 }
 
+export async function queueLabelJobAction(formData: FormData) {
+  await queueLabelJob(toFormObject(formData));
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/labels");
+  redirect("/dispatch/labels");
+}
+
 export async function recordDeliveryEventAction(formData: FormData) {
   await recordDeliveryEvent(toFormObject(formData));
   revalidatePath("/dispatch");
@@ -102,4 +128,17 @@ export async function recordDeliveryEventAction(formData: FormData) {
   revalidatePath("/dispatch/packing-slips");
   revalidatePath("/dispatch/deliveries");
   redirect("/dispatch/deliveries");
+}
+
+export async function createUserAction(formData: FormData) {
+  await createUserAccount(toFormObject(formData));
+  revalidatePath("/dispatch/users");
+  revalidatePath("/dispatch/companies");
+  redirect("/dispatch/users");
+}
+
+export async function createCompanyAction(formData: FormData) {
+  await createCompany(toFormObject(formData));
+  revalidatePath("/dispatch/companies");
+  redirect("/dispatch/companies");
 }

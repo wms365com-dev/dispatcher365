@@ -73,6 +73,15 @@ model Tenant {
   id          String               @id @default(cuid())
   slug        String               @unique
   name        String
+  warehouseName String?
+  warehouseAddress1 String?
+  warehouseAddress2 String?
+  warehouseCity String?
+  warehouseState String?
+  warehousePostalCode String?
+  warehouseCountry String?        @default("US")
+  warehousePhone String?
+  warehouseFob String?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
   memberships TenantMembership[]
@@ -80,6 +89,7 @@ model Tenant {
   locations   CustomerLocation[]
   carriers    Carrier[]
   drivers     Driver[]
+  salesReps   SalesRep[]
   products    Product[]
   shipments   Shipment[]
   shipmentLines ShipmentLine[]
@@ -167,11 +177,20 @@ model Carrier {
   tenantId      String
   carrierCode   String
   name          String
+  address1      String?
+  address2      String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?     @default("US")
   scac          String?
   email         String?
   phone         String?
+  fax           String?
+  cell          String?
   contactName   String?
   website       String?
+  websitePickup String?
   isLtl         Boolean     @default(false)
   isFtl         Boolean     @default(false)
   isBroker      Boolean     @default(false)
@@ -183,6 +202,21 @@ model Carrier {
   routes        RouteRun[]
 
   @@unique([tenantId, carrierCode])
+}
+
+model SalesRep {
+  id         String    @id @default(cuid())
+  tenantId   String
+  repCode    String
+  fullName   String
+  email      String?
+  phone      String?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, repCode])
 }
 
 model Driver {
@@ -211,6 +245,8 @@ model Product {
   description     String
   productLine     String?
   productType     String?
+  packageType     String?
+  nmfcCode        String?
   defaultWeightLb Float?
   lengthIn        Float?
   widthIn         Float?
@@ -237,12 +273,15 @@ model Shipment {
   status           ShipmentStatus @default(DRAFT)
   routedDate       DateTime?
   shipDate         DateTime?
+  cancelDate       DateTime?
   deliveryDate     DateTime?
   deliveryWindow   String?
+  routeDeskDate    DateTime?
   authorization    String?
   approvedBy       String?
   approvalNotes    String?
   scac             String?
+  checkOrCash      String?
   comments         String?
   codAmount        Float?
   units            Int            @default(0)
@@ -250,6 +289,7 @@ model Shipment {
   pallets          Int            @default(0)
   weightLb         Float          @default(0)
   cubeCuFt         Float          @default(0)
+  heightIn         Float?
   freightClass     String?
   emailSubject     String?
   rfqSubject       String?
@@ -387,6 +427,7 @@ model LabelJob {
   tenantId      String
   shipmentId    String?
   labelKind     LabelKind
+  templateVariant String  @default("SIMPLE")
   quantity      Int       @default(1)
   printedAt     DateTime?
   createdAt     DateTime  @default(now())

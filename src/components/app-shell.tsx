@@ -133,51 +133,55 @@ export function AppShell({
 
   return (
     <div className="dispatch-shell">
-      <header className="dispatch-topbar">
+      <aside className="dispatch-rail">
         <div className="dispatch-brand">
-          <div className="dispatch-brand__eyebrow">Tenant Workspace</div>
+          <div className="dispatch-brand__eyebrow">WMS 365</div>
           <div className="dispatch-brand__title">{tenantName}</div>
         </div>
 
+        <nav className="dispatch-nav" aria-label="Dispatch modules">
+          {dispatchNavigationSections.map((section) => (
+            <div className="dispatch-nav__section" key={section.title}>
+              <p className="dispatch-nav__section-title">{section.title}</p>
+              <div className="dispatch-nav__section-items">
+                {section.items.map((item) => {
+                  const active = pathname === item.href;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href as Route}
+                      title={item.description}
+                      className={`dispatch-nav__item${active ? " dispatch-nav__item--active" : ""}`}
+                    >
+                      <span className="dispatch-nav__badge">
+                        <DispatchIcon icon={item.icon} className="dispatch-nav__svg" />
+                      </span>
+                      <span>
+                        <strong>{item.label}</strong>
+                        <small>{item.description}</small>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <header className="dispatch-topbar">
+        <div />
         <div className="dispatch-topbar__right">
           <div className="dispatch-topbar__meta">
             <span className="dispatch-user__name">{userEmail}</span>
             <span className="dispatch-user__detail">
-              {roleLabel.replaceAll("_", " ")} · {tenantSlug}
+              {roleLabel.replaceAll("_", " ")} | {tenantSlug}
             </span>
           </div>
           {topbarActions ? <div className="dispatch-topbar__actions">{topbarActions}</div> : null}
         </div>
       </header>
-
-      <aside className="dispatch-rail">
-        <nav className="dispatch-nav" aria-label="Dispatch modules">
-          {dispatchNavigationSections.map((section, sectionIndex) => (
-            <div
-              className={`dispatch-nav__group${sectionIndex > 0 ? " dispatch-nav__group--secondary" : ""}`}
-              key={section.title}
-            >
-              {section.items.map((item) => {
-                const active = pathname === item.href;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href as Route}
-                    title={item.description}
-                    className={`dispatch-nav__item${active ? " dispatch-nav__item--active" : ""}`}
-                  >
-                    <span className="dispatch-nav__icon">
-                      <DispatchIcon icon={item.icon} />
-                    </span>
-                    <span className="dispatch-nav__label">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </aside>
 
       <div className="dispatch-main">
         <main className="dispatch-content">{children}</main>

@@ -32,6 +32,7 @@ async function main() {
   }
 
   const nextCli = new URL("../node_modules/next/dist/bin/next", import.meta.url);
+  const prismaCli = new URL("../node_modules/prisma/build/index.js", import.meta.url);
 
   try {
     await access(nextCli, constants.F_OK);
@@ -39,6 +40,16 @@ async function main() {
     console.error("Next.js runtime binary was not found. Ensure dependencies were installed during build.");
     process.exit(1);
   }
+
+  try {
+    await access(prismaCli, constants.F_OK);
+  } catch {
+    console.error("Prisma CLI was not found. Ensure dependencies were installed during build.");
+    process.exit(1);
+  }
+
+  console.log("Applying Prisma schema to the configured database...");
+  await runNodeScript(fileURLToPath(prismaCli), ["db", "push", "--skip-generate"]);
 
   console.log(`Starting Next.js on port ${port}...`);
   const child = spawn(process.execPath, [fileURLToPath(nextCli), "start", "-H", "0.0.0.0", "-p", port], {

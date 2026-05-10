@@ -1,36 +1,76 @@
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
+import { SimpleTable } from "@/components/simple-table";
+import { createSalesRepAction } from "@/lib/server/dispatch-actions";
+import { getSalesRepsData } from "@/lib/server/dispatch-service";
 
-export default function SalesRepsPage() {
+export default async function SalesRepsPage() {
+  const { salesReps } = await getSalesRepsData();
+
+  const rows = salesReps.map((salesRep) => ({
+    code: salesRep.repCode,
+    name: salesRep.fullName,
+    email: salesRep.email ?? "-",
+    phone: salesRep.phone ?? "-",
+    active: salesRep.isActive ? "Active" : "Inactive"
+  }));
+
   return (
     <>
       <PageHeader
-        eyebrow="Legacy module mapped forward"
-        title="Sales Rep"
-        description="The original Healtea tenant kept a dedicated sales-rep module tied to packing slips and order references. This page marks that module as a first-class rebuild target."
+        eyebrow="Sales Rep"
+        title="Sales Info"
+        description="The old system used a dedicated sales rep module. This rebuild keeps that master data separate so packing slip entry can use clean lookups instead of loose text."
       />
 
-      <div className="split-grid">
+      <div className="legacy-page-grid">
         <SectionCard
-          title="Legacy Behavior To Preserve"
-          description="The old site treated sales reps as reusable master data instead of free text."
+          title="Use Form Input"
+          description="Enter the sales rep once, then reuse the code across packing slips, BOLs, and customer communication."
         >
-          <ul className="note-list">
-            <li>Dispatchers could assign a sales rep during packing slip entry.</li>
-            <li>Sales rep maintenance had its own enter/list workflow.</li>
-            <li>Sales rep values flowed into lookup and print contexts without being retyped.</li>
-          </ul>
+          <form action={createSalesRepAction} className="legacy-form-grid">
+            <label className="field">
+              <span>Sales Code</span>
+              <input name="repCode" placeholder="ZE47" required />
+            </label>
+            <label className="field">
+              <span>Phone</span>
+              <input name="phone" placeholder="2015550181" />
+            </label>
+            <label className="field">
+              <span>Full Name</span>
+              <input name="fullName" placeholder="Zoe Edwards" required />
+            </label>
+            <label className="field">
+              <span>Email</span>
+              <input name="email" type="email" placeholder="sales@example.com" />
+            </label>
+            <div className="field field--wide form-actions">
+              <button className="button" type="submit">
+                Submit Form
+              </button>
+              <button className="button button--ghost" type="reset">
+                Reset
+              </button>
+            </div>
+          </form>
         </SectionCard>
 
         <SectionCard
-          title="Rebuild Direction"
-          description="This should become a normalized tenant-owned table rather than a loose shipment field."
+          title="Sales Rep List"
+          description="This lines up with the old sales lookup table and keeps rep code, name, and contact details together."
         >
-          <ul className="note-list">
-            <li>Add a `sales_reps` table with tenant scope, contact info, and active/inactive state.</li>
-            <li>Turn shipment sales rep entry into a lookup instead of a free-form text box.</li>
-            <li>Carry the selected sales rep through BOL, route, and customer communication flows.</li>
-          </ul>
+          <SimpleTable
+            columns={[
+              { key: "code", label: "Code" },
+              { key: "name", label: "Name" },
+              { key: "email", label: "Email" },
+              { key: "phone", label: "Phone" },
+              { key: "active", label: "Status" }
+            ]}
+            rows={rows}
+            emptyMessage="No sales reps have been added for this tenant yet."
+          />
         </SectionCard>
       </div>
     </>

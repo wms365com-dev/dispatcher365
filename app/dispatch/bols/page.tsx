@@ -132,7 +132,16 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         previewCustomer.country
       ])
     : "-";
-  const shipFromAddress = formatAddress([context.tenant.name, context.tenant.slug.toUpperCase(), "Dispatch warehouse"]);
+  const shipFromAddress = formatAddress([
+    context.tenant.warehouseName ?? context.tenant.name,
+    context.tenant.warehouseAddress1,
+    context.tenant.warehouseAddress2
+  ]);
+  const shipFromCityStateZip = formatAddress([
+    context.tenant.warehouseCity,
+    context.tenant.warehouseState,
+    context.tenant.warehousePostalCode
+  ]);
   const bolLineDescription = previewCustomer ? `${previewCustomer.customerCode} / ${previewCustomer.name}` : "Tenant freight shipment";
   const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "Prepaid").toUpperCase();
   const isCollect = freightTerms.includes("COLLECT");
@@ -199,7 +208,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">Name:</td>
-                      <td>{context.tenant.name}</td>
+                      <td>{context.tenant.warehouseName ?? context.tenant.name}</td>
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">Address:</td>
@@ -207,11 +216,17 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">City/State/Zip:</td>
-                      <td>{context.tenant.slug.toUpperCase()}</td>
+                      <td>{shipFromCityStateZip}</td>
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">SID#:</td>
                       <td>{previewShipment.batchId}</td>
+                    </tr>
+                    <tr>
+                      <td className="legacy-bol-table__label">TEL / FOB:</td>
+                      <td>
+                        {context.tenant.warehousePhone ?? "-"} / {context.tenant.warehouseFob ?? "-"}
+                      </td>
                     </tr>
 
                     <tr>
@@ -236,6 +251,10 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     <tr>
                       <td className="legacy-bol-table__label">SID#:</td>
                       <td>{previewShipment.batchId}</td>
+                    </tr>
+                    <tr>
+                      <td className="legacy-bol-table__label">TEL:</td>
+                      <td>{previewCustomer.phone ?? "-"}</td>
                     </tr>
 
                     <tr>

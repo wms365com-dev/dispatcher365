@@ -2,12 +2,17 @@ import { prisma } from "@/lib/prisma";
 import {
   bolGenerateSchema,
   carrierCreateSchema,
+  companyCreateSchema,
   customerCreateSchema,
   deliveryEventCreateSchema,
   driverCreateSchema,
+  labelJobCreateSchema,
+  productCreateSchema,
   routeCreateSchema,
   routePublishSchema,
-  shipmentCreateSchema
+  salesRepCreateSchema,
+  shipmentCreateSchema,
+  userCreateSchema
 } from "@/lib/validators";
 import {
   buildBolNumber,
@@ -20,6 +25,7 @@ import {
 
 import { requireTenantSession } from "./auth";
 import { ensureDemoSeed } from "./demo-seed";
+import { createPasswordHash } from "./password";
 
 function parseDateValue(value?: string) {
   return value ? new Date(value) : undefined;
@@ -242,10 +248,38 @@ export async function getCarriersData() {
   };
 }
 
+export async function getSalesRepsData() {
+  const { tenantId, tenant, user } = await getTenantScope();
+
+  const salesReps = await prisma.salesRep.findMany({
+    where: { tenantId },
+    orderBy: [{ fullName: "asc" }]
+  });
+
+  return {
+    context: { tenant, user },
+    salesReps
+  };
+}
+
+export async function getCartonInfoData() {
+  const { tenantId, tenant, user } = await getTenantScope();
+
+  const products = await prisma.product.findMany({
+    where: { tenantId },
+    orderBy: [{ sku: "asc" }]
+  });
+
+  return {
+    context: { tenant, user },
+    products
+  };
+}
+
 export async function getPackingSlipsData(customerLookup?: string) {
   const { tenantId, tenant, user } = await getTenantScope();
 
-  const [customers, carriers, shipments] = await Promise.all([
+  const [customers, carriers, salesReps, products, shipments] = await Promise.all([
     prisma.customer.findMany({
       where: { tenantId },
       orderBy: [{ name: "asc" }]
@@ -253,6 +287,14 @@ export async function getPackingSlipsData(customerLookup?: string) {
     prisma.carrier.findMany({
       where: { tenantId },
       orderBy: [{ name: "asc" }]
+    }),
+    prisma.salesRep.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: [{ fullName: "asc" }]
+    }),
+    prisma.product.findMany({
+      where: { tenantId },
+      orderBy: [{ sku: "asc" }]
     }),
     prisma.shipment.findMany({
       where: { tenantId },
@@ -269,6 +311,8 @@ export async function getPackingSlipsData(customerLookup?: string) {
     context: { tenant, user },
     customers,
     carriers,
+    salesReps,
+    products,
     shipments,
     lookupQuery: customerLookup,
     lookupMatches: customerLookup ? findClosestCustomerMatches(customerLookup, customers, 5) : []
@@ -314,21 +358,79 @@ export async function getBolsData() {
 export async function getLabelsData() {
   const { tenantId, tenant, user } = await getTenantScope();
 
-  const labelJobs = await prisma.labelJob.findMany({
-    where: { tenantId },
-    include: {
-      shipment: {
-        include: {
-          customer: true
+  const [shipments, labelJobs] = await Promise.all([
+    prisma.shipment.findMany({
+      where: { tenantId },
+      include: {
+        customer: true,
+        carrier: true
+      },
+      orderBy: [{ batchId: "asc" }]
+    }),
+    prisma.labelJob.findMany({
+      where: { tenantId },
+      include: {
+        shipment: {
+          include: {
+            customer: true
+          }
         }
-      }
-    },
-    orderBy: [{ createdAt: "desc" }]
-  });
+      },
+      orderBy: [{ createdAt: "desc" }]
+    })
+  ]);
 
   return {
     context: { tenant, user },
+    shipments,
     labelJobs
+  };
+}
+
+export async function getUsersData() {
+  const { tenantId, tenant, user, role } = await getTenantScope();
+
+  const [memberships, tenants] = await Promise.all([
+    prisma.tenantMembership.findMany({
+      where: role === "PLATFORM_ADMIN" ? undefined : { tenantId },
+      include: {
+        tenant: true,
+        user: true
+      },
+      orderBy: [{ createdAt: "asc" }]
+    }),
+    prisma.tenant.findMany({
+      orderBy: [{ name: "asc" }]
+    })
+  ]);
+
+  return {
+    context: { tenant, user, role },
+    memberships,
+    tenants
+  };
+}
+
+export async function getCompaniesData() {
+  const { tenantId, tenant, user, role } = await getTenantScope();
+
+  const tenants = await prisma.tenant.findMany({
+    where: role === "PLATFORM_ADMIN" ? undefined : { id: tenantId },
+    include: {
+      _count: {
+        select: {
+          memberships: true,
+          customers: true,
+          shipments: true
+        }
+      }
+    },
+    orderBy: [{ name: "asc" }]
+  });
+
+  return {
+    context: { tenant, user, role },
+    tenants
   };
 }
 
@@ -445,12 +547,13 @@ export async function createCustomer(input: unknown) {
   const data = customerCreateSchema.parse(input);
   const { tenantId } = await getTenantScope();
 
-  return prisma.customer.create({
+  const customer = await prisma.customer.create({
     data: {
       tenantId,
       customerCode: data.customerCode,
       name: data.name,
       billingAddress1: data.billingAddress1,
+      billingAddress2: data.billingAddress2,
       city: data.city,
       state: data.state,
       postalCode: data.postalCode,
@@ -460,6 +563,26 @@ export async function createCustomer(input: unknown) {
       freightTerms: data.freightTerms
     }
   });
+
+  await prisma.customerLocation.create({
+    data: {
+      tenantId,
+      customerId: customer.id,
+      code: data.shipToCode ?? data.customerCode,
+      name: data.shipToName ?? data.name,
+      address1: data.shipToAddress1 ?? data.billingAddress1,
+      address2: data.shipToAddress2 ?? data.billingAddress2,
+      city: data.shipToCity ?? data.city,
+      state: data.shipToState ?? data.state,
+      postalCode: data.shipToPostalCode ?? data.postalCode,
+      country: data.shipToCountry ?? data.country,
+      phone: data.shipToPhone ?? data.phone,
+      email: data.shipToEmail ?? data.email,
+      isDefault: true
+    }
+  });
+
+  return customer;
 }
 
 export async function createCarrier(input: unknown) {
@@ -471,13 +594,38 @@ export async function createCarrier(input: unknown) {
       tenantId,
       carrierCode: data.carrierCode,
       name: data.name,
+      address1: data.address1,
+      address2: data.address2,
+      city: data.city,
+      state: data.state,
+      postalCode: data.postalCode,
+      country: data.country,
       scac: data.scac,
       email: data.email,
       phone: data.phone,
+      fax: data.fax,
+      cell: data.cell,
       contactName: data.contactName,
+      website: data.website,
+      websitePickup: data.websitePickup,
       isLtl: data.isLtl,
       isFtl: data.isFtl,
       isBroker: data.isBroker
+    }
+  });
+}
+
+export async function createSalesRep(input: unknown) {
+  const data = salesRepCreateSchema.parse(input);
+  const { tenantId } = await getTenantScope();
+
+  return prisma.salesRep.create({
+    data: {
+      tenantId,
+      repCode: data.repCode,
+      fullName: data.fullName,
+      email: data.email,
+      phone: data.phone
     }
   });
 }
@@ -505,6 +653,29 @@ export async function createDriver(input: unknown) {
       phone: data.phone,
       email: data.email,
       carrierId: carrier?.id
+    }
+  });
+}
+
+export async function createProduct(input: unknown) {
+  const data = productCreateSchema.parse(input);
+  const { tenantId } = await getTenantScope();
+
+  return prisma.product.create({
+    data: {
+      tenantId,
+      sku: data.sku,
+      description: data.description,
+      productLine: data.productLine,
+      productType: data.productType,
+      packageType: data.packageType,
+      nmfcCode: data.nmfcCode,
+      defaultWeightLb: data.defaultWeightLb,
+      lengthIn: data.lengthIn,
+      widthIn: data.widthIn,
+      heightIn: data.heightIn,
+      casePack: data.casePack,
+      volumeCuFt: data.volumeCuFt
     }
   });
 }
@@ -563,14 +734,26 @@ export async function createShipment(input: unknown) {
       salesperson: data.salesperson,
       status: "READY_FOR_BOL",
       shipDate: parseDateValue(data.shipDate),
+      cancelDate: parseDateValue(data.cancelDate),
       deliveryDate: parseDateValue(data.deliveryDate),
       deliveryWindow: data.deliveryWindow,
+      routeDeskDate: parseDateValue(data.routeDeskDate),
+      routedDate: parseDateValue(data.routedDate),
+      authorization: data.authorization,
+      approvedBy: data.approvedBy,
+      approvalNotes: data.approvalNotes,
+      scac: data.scac ?? carrier?.scac,
+      checkOrCash: data.checkOrCash,
       comments: data.comments,
-      cartons: data.cartons,
-      pallets: data.pallets,
+      codAmount: data.codAmount,
+      units: Math.round(data.units),
+      cartons: Math.round(data.cartons),
+      pallets: Math.round(data.pallets),
       weightLb,
       cubeCuFt,
+      heightIn: data.heightIn,
       freightClass,
+      department: data.department,
       emailSubject: buildEmailSubject(
         data.customerCode,
         data.customerPo ?? "TBD",
@@ -783,6 +966,111 @@ export async function publishRouteRun(input: unknown) {
   });
 
   return updatedRoute;
+}
+
+export async function queueLabelJob(input: unknown) {
+  const data = labelJobCreateSchema.parse(input);
+  const { tenantId } = await getTenantScope();
+
+  const shipment = await prisma.shipment.findUnique({
+    where: {
+      tenantId_batchId: {
+        tenantId,
+        batchId: data.batchId
+      }
+    }
+  });
+
+  if (!shipment) {
+    return null;
+  }
+
+  return prisma.labelJob.create({
+    data: {
+      tenantId,
+      shipmentId: shipment.id,
+      labelKind: data.labelKind,
+      templateVariant: data.templateVariant,
+      quantity: data.quantity
+    }
+  });
+}
+
+export async function createUserAccount(input: unknown) {
+  const data = userCreateSchema.parse(input);
+  const { tenantId, role } = await getTenantScope();
+
+  const targetTenantId =
+    role === "PLATFORM_ADMIN" && data.tenantSlug
+      ? (
+          await prisma.tenant.findUnique({
+            where: { slug: data.tenantSlug }
+          })
+        )?.id ?? tenantId
+      : tenantId;
+
+  const user = await prisma.user.upsert({
+    where: { email: data.email },
+    update: {
+      fullName: data.fullName,
+      passwordHash: createPasswordHash(data.password)
+    },
+    create: {
+      email: data.email,
+      fullName: data.fullName,
+      passwordHash: createPasswordHash(data.password)
+    }
+  });
+
+  await prisma.tenantMembership.upsert({
+    where: {
+      tenantId_userId: {
+        tenantId: targetTenantId,
+        userId: user.id
+      }
+    },
+    update: {
+      role: data.role
+    },
+    create: {
+      tenantId: targetTenantId,
+      userId: user.id,
+      role: data.role
+    }
+  });
+
+  return user;
+}
+
+export async function createCompany(input: unknown) {
+  const data = companyCreateSchema.parse(input);
+  const { user } = await getTenantScope();
+
+  const tenant = await prisma.tenant.create({
+    data: {
+      slug: data.slug,
+      name: data.name,
+      warehouseName: data.warehouseName,
+      warehouseAddress1: data.warehouseAddress1,
+      warehouseAddress2: data.warehouseAddress2,
+      warehouseCity: data.warehouseCity,
+      warehouseState: data.warehouseState,
+      warehousePostalCode: data.warehousePostalCode,
+      warehouseCountry: data.warehouseCountry,
+      warehousePhone: data.warehousePhone,
+      warehouseFob: data.warehouseFob
+    }
+  });
+
+  await prisma.tenantMembership.create({
+    data: {
+      tenantId: tenant.id,
+      userId: user.id,
+      role: "TENANT_ADMIN"
+    }
+  });
+
+  return tenant;
 }
 
 export async function recordDeliveryEvent(input: unknown) {

@@ -18,15 +18,13 @@ export function PageHeader({ eyebrow, title, description, action }: PageHeaderPr
           </h2>
           <div className="page-bar">
             <span>Home</span>
-            <span className="page-bar__sep">›</span>
+            <span className="page-bar__sep">&gt;</span>
             <span>{eyebrow}</span>
           </div>
         </div>
         {action ? <div>{action}</div> : null}
       </div>
-      <div>
-        <p className="page-header__description">{description}</p>
-      </div>
+      <p className="page-header__description">{description}</p>
     </div>
   );
 }

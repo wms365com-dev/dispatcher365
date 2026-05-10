@@ -14,6 +14,8 @@ interface SignInPageProps {
   }>;
 }
 
+export const dynamic = "force-dynamic";
+
 const errorMessages: Record<string, string> = {
   "invalid-credentials": "The email or password did not match an account in WMS 365 Dispatch.",
   "no-tenant-access": "This user does not belong to a tenant yet."
