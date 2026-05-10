@@ -46,12 +46,29 @@ function formatAddress(parts: Array<string | null | undefined>) {
 function formatCityStateZip(
   city?: string | null,
   state?: string | null,
-  postalCode?: string | null,
-  country?: string | null
+  postalCode?: string | null
 ) {
   const left = [city?.trim(), state?.trim()].filter(Boolean).join(", ");
-  const right = [postalCode?.trim(), country?.trim()].filter(Boolean).join(" ");
+  const right = [postalCode?.trim()].filter(Boolean).join(" ");
   return [left, right].filter(Boolean).join(" ").trim() || "-";
+}
+
+function formatSlashDate(value?: Date | null) {
+  if (!value) {
+    return "-";
+  }
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(value);
+
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  const year = parts.find((part) => part.type === "year")?.value;
+
+  return [month, day, year].filter(Boolean).join(" / ");
 }
 
 function formatCurrency(value?: number | null) {
@@ -147,14 +164,12 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const shipFromCityStateZip = formatCityStateZip(
     context.tenant.warehouseCity,
     context.tenant.warehouseState,
-    context.tenant.warehousePostalCode,
-    context.tenant.warehouseCountry
+    context.tenant.warehousePostalCode
   );
   const shipToCityStateZip = formatCityStateZip(
     previewCustomer?.city,
     previewCustomer?.state,
-    previewCustomer?.postalCode,
-    previewCustomer?.country
+    previewCustomer?.postalCode
   );
   const thirdPartyAddress = previewThirdParty
     ? formatAddress([previewThirdParty.address1, previewThirdParty.address2])
@@ -162,8 +177,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const thirdPartyCityStateZip = formatCityStateZip(
     previewThirdParty?.city,
     previewThirdParty?.state,
-    previewThirdParty?.postalCode,
-    previewThirdParty?.country
+    previewThirdParty?.postalCode
   );
   const bolLineDescription = previewCustomer ? `${previewCustomer.customerCode} / ${previewCustomer.name}` : "Tenant freight shipment";
   const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "Prepaid").toUpperCase();
@@ -172,7 +186,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const codAmount = previewShipment?.codAmount ?? 0;
   const hasCod = codAmount > 0;
   const orderReference = previewShipment?.customerPo ?? previewShipment?.salesOrder ?? previewShipment?.batchId ?? "-";
-  const orderCommodity = previewShipment?.department ?? "GENERAL FREIGHT";
+  const orderCommodity = previewShipment?.department ?? "HOUSEWARE";
   const hasVicsPrefix = Boolean(context.tenant.gs1CompanyPrefix);
 
   return (
@@ -260,12 +274,8 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">SID#:</td>
-                      <td>{previewShipment.batchId}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">TEL / FOB:</td>
                       <td>
-                        {context.tenant.warehousePhone ?? "-"} &nbsp; FOB: {context.tenant.warehouseFob ?? "□"}
+                        TEL: {context.tenant.warehousePhone ?? "-"} &nbsp;&nbsp; FOB: {context.tenant.warehouseFob ? "□" : "□"}
                       </td>
                     </tr>
 
@@ -288,11 +298,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">SID#:</td>
-                      <td>{previewShipment.batchId}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">TEL:</td>
-                      <td>{previewCustomer.phone ?? "-"}</td>
+                      <td>TEL: {previewCustomer.phone ?? "-"}</td>
                     </tr>
 
                     <tr>
@@ -353,7 +359,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                 <tbody>
                   <tr>
                     <td className="legacy-bol-table__label">DELIVERY DATE:</td>
-                    <td>{formatDate(previewShipment.deliveryDate)}</td>
+                    <td>{formatSlashDate(previewShipment.deliveryDate)}</td>
                     <td className="legacy-bol-table__label">SPECIAL INSTRUCTIONS</td>
                     <td rowSpan={3}>{previewShipment.comments ?? "-"}</td>
                   </tr>
