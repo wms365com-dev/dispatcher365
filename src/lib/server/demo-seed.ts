@@ -442,6 +442,52 @@ export async function ensureDemoSeed() {
     });
   }
 
+  const seedMarkerEntityId = `demo-seed:${tenant.slug}`;
+  const existingSeedMarker = await prisma.auditLog.findFirst({
+    where: {
+      tenantId: tenant.id,
+      entityType: "SYSTEM",
+      entityId: seedMarkerEntityId,
+      action: "SEEDED"
+    }
+  });
+
+  if (existingSeedMarker) {
+    return {
+      tenant,
+      user
+    };
+  }
+
+  const existingSeedShipment = await prisma.shipment.findUnique({
+    where: {
+      tenantId_batchId: {
+        tenantId: tenant.id,
+        batchId: shipmentSeeds[0].batchId
+      }
+    }
+  });
+
+  if (existingSeedShipment) {
+    await prisma.auditLog.create({
+      data: {
+        tenantId: tenant.id,
+        userId: user.id,
+        entityType: "SYSTEM",
+        entityId: seedMarkerEntityId,
+        action: "SEEDED",
+        payloadJson: JSON.stringify({
+          source: "existing-seed-data"
+        })
+      }
+    });
+
+    return {
+      tenant,
+      user
+    };
+  }
+
   for (const customerSeed of customerSeeds) {
     const customer = await prisma.customer.upsert({
       where: {
@@ -866,6 +912,19 @@ export async function ensureDemoSeed() {
       }
     });
   }
+
+  await prisma.auditLog.create({
+    data: {
+      tenantId: tenant.id,
+      userId: user.id,
+      entityType: "SYSTEM",
+      entityId: seedMarkerEntityId,
+      action: "SEEDED",
+      payloadJson: JSON.stringify({
+        source: "initial-seed"
+      })
+    }
+  });
 
   return {
     tenant,
