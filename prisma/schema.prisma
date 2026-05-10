@@ -361,7 +361,7 @@ model BillOfLading {
   tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   shipment         Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, bolNumber])
+  @@index([tenantId, bolNumber])
 }
 
 model RouteRun {

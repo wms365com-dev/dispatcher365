@@ -36,6 +36,10 @@ function parseBatchIds(value: string) {
   return [...new Set(value.split(/[,\s]+/).map((item) => item.trim().toUpperCase()).filter(Boolean))];
 }
 
+function normalizeBatchIdInputs(values?: string[]) {
+  return [...new Set((values ?? []).flatMap((value) => parseBatchIds(value)))];
+}
+
 function trimOrUndefined(value?: string | null) {
   if (!value) {
     return undefined;
@@ -349,17 +353,21 @@ export async function getPackingSlipsData(customerLookup?: string) {
 export async function getBolsData() {
   const { tenantId, tenant, user } = await getTenantScope();
 
-  const [readyShipments, bills] = await Promise.all([
+  const [shipments, bills] = await Promise.all([
     prisma.shipment.findMany({
-      where: {
-        tenantId,
-        status: "READY_FOR_BOL"
-      },
+      where: { tenantId },
       include: {
-        customer: true,
-        carrier: true
+        customer: {
+          include: {
+            locations: {
+              orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }]
+            }
+          }
+        },
+        carrier: true,
+        bol: true
       },
-      orderBy: [{ batchId: "asc" }]
+      orderBy: [{ createdAt: "desc" }, { batchId: "desc" }]
     }),
     prisma.billOfLading.findMany({
       where: { tenantId },
@@ -381,10 +389,55 @@ export async function getBolsData() {
     })
   ]);
 
+  const groupedBills = Array.from(
+    bills.reduce((map, bill) => {
+      const current = map.get(bill.bolNumber);
+
+      if (current) {
+        current.shipments.push(bill.shipment);
+        current.billIds.push(bill.id);
+        if (bill.createdAt > current.createdAt) {
+          current.createdAt = bill.createdAt;
+          current.templateVariant = bill.templateVariant;
+          current.freightTerms = bill.freightTerms;
+          current.carrierName = bill.carrierName;
+        }
+      } else {
+        map.set(bill.bolNumber, {
+          id: bill.id,
+          billIds: [bill.id],
+          bolNumber: bill.bolNumber,
+          templateVariant: bill.templateVariant,
+          freightTerms: bill.freightTerms,
+          carrierName: bill.carrierName,
+          createdAt: bill.createdAt,
+          shipments: [bill.shipment]
+        });
+      }
+
+      return map;
+    }, new Map<string, {
+      id: string;
+      billIds: string[];
+      bolNumber: string;
+      templateVariant: string;
+      freightTerms: string | null;
+      carrierName: string | null;
+      createdAt: Date;
+      shipments: typeof bills[number]["shipment"][];
+    }>())
+  )
+    .map(([, group]) => ({
+      ...group,
+      shipments: [...group.shipments].sort((left, right) => left.batchId.localeCompare(right.batchId))
+    }))
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+
   return {
     context: { tenant, user },
-    readyShipments,
-    bills
+    shipments,
+    readyShipments: shipments.filter((shipment) => shipment.status === "READY_FOR_BOL"),
+    groupedBills
   };
 }
 
@@ -821,64 +874,73 @@ export async function generateBillOfLading(input: unknown) {
   const data = bolGenerateSchema.parse(input);
   const { tenantId, tenant } = await getTenantScope();
 
-  const shipment = await prisma.shipment.findUnique({
+  const batchIds = parseBatchIds(data.batchIds);
+  const shipments = await prisma.shipment.findMany({
     where: {
-      tenantId_batchId: {
-        tenantId,
-        batchId: data.batchId
+      tenantId,
+      batchId: {
+        in: batchIds
       }
     },
     include: {
       customer: true,
       carrier: true
-    }
+    },
+    orderBy: [{ batchId: "asc" }]
   });
 
-  if (!shipment) {
+  if (!shipments.length) {
     return null;
   }
+
+  const primaryShipment = shipments[0];
 
   const bolNumber = await createUniqueBolNumber(
     tenantId,
     tenant.gs1CompanyPrefix,
-    shipment.id,
-    shipment.batchId,
-    shipment.customer.customerCode,
-    shipment.salesOrder
+    primaryShipment.id,
+    primaryShipment.batchId,
+    primaryShipment.customer.customerCode,
+    primaryShipment.salesOrder
   );
 
-  const bill = await prisma.billOfLading.upsert({
-    where: { shipmentId: shipment.id },
-    update: {
-      bolNumber,
-      templateVariant: data.template,
-      freightTerms: shipment.customer.freightTerms,
-      carrierName: shipment.carrier?.name,
-      printedAt: null
-    },
-    create: {
-      tenantId,
-      shipmentId: shipment.id,
-      bolNumber,
-      templateVariant: data.template,
-      freightTerms: shipment.customer.freightTerms,
-      carrierName: shipment.carrier?.name
-    },
-    include: {
-      shipment: {
-        include: {
-          customer: true
+  await Promise.all(
+    shipments.map((shipment) =>
+      prisma.billOfLading.upsert({
+        where: { shipmentId: shipment.id },
+        update: {
+          bolNumber,
+          templateVariant: data.template,
+          freightTerms: shipment.customer.freightTerms,
+          carrierName: shipment.carrier?.name,
+          printedAt: null
+        },
+        create: {
+          tenantId,
+          shipmentId: shipment.id,
+          bolNumber,
+          templateVariant: data.template,
+          freightTerms: shipment.customer.freightTerms,
+          carrierName: shipment.carrier?.name
         }
-      }
-    }
-  });
+      })
+    )
+  );
 
-  await prisma.shipment.update({
-    where: { id: shipment.id },
+  await prisma.shipment.updateMany({
+    where: {
+      tenantId,
+      id: {
+        in: shipments.map((shipment) => shipment.id)
+      }
+    },
     data: { status: "BOL_CREATED" }
   });
 
-  return bill;
+  return {
+    bolNumber,
+    batchIds: shipments.map((shipment) => shipment.batchId)
+  };
 }
 
 export async function createRouteRun(input: unknown) {

@@ -29,19 +29,24 @@ interface LegacyBolDocumentProps {
   receivingHours: string;
   codInlineAmount: string;
   codLargeAmount: string;
-  customerPo: string;
-  cartons: string;
-  weight: string;
-  salesOrder: string;
-  department: string;
-  batchId: string;
-  pallets: string;
+  carrierRows: Array<{
+    customerPo: string;
+    cartons: string;
+    weight: string;
+    salesOrder: string;
+    department: string;
+    batchId: string;
+    pallets: string;
+  }>;
+  totalCartons: string;
+  totalWeight: string;
+  totalPallets: string;
   commodity: string;
   nmfcCode: string;
   customerComments: string;
 }
 
-const squareMark = "☐";
+const squareMark = "\u2610";
 
 function AddressCell({
   label,
@@ -290,20 +295,22 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             <td>DEPT #</td>
             <td>BATCH ID</td>
           </tr>
-          <tr style={{ fontWeight: "bold", textAlign: "center" }}>
-            <td>{props.customerPo}</td>
-            <td>{props.cartons}</td>
-            <td>{props.weight}</td>
-            <td>Y</td>
-            <td>N</td>
-            <td>{props.salesOrder}</td>
-            <td>{props.department}</td>
-            <td>{props.batchId}</td>
-          </tr>
+          {props.carrierRows.map((row) => (
+            <tr key={row.batchId} style={{ fontWeight: "bold", textAlign: "center" }}>
+              <td>{row.customerPo}</td>
+              <td>{row.cartons}</td>
+              <td>{row.weight}</td>
+              <td>Y</td>
+              <td>N</td>
+              <td>{row.salesOrder}</td>
+              <td>{row.department}</td>
+              <td>{row.batchId}</td>
+            </tr>
+          ))}
           <tr style={{ textAlign: "center" }}>
             <td>GRAND TOTAL</td>
-            <td style={{ fontWeight: "bold" }}>{props.cartons}</td>
-            <td style={{ fontWeight: "bold" }}>{props.weight}</td>
+            <td style={{ fontWeight: "bold" }}>{props.totalCartons}</td>
+            <td style={{ fontWeight: "bold" }}>{props.totalWeight}</td>
             <td className="legacy-bol-grey-cell" colSpan={5}></td>
           </tr>
         </tbody>
@@ -324,9 +331,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
           <tr style={{ fontSize: "8pt", textAlign: "center" }}>
             <td colSpan={2}>HANDLING UNIT</td>
             <td colSpan={2}>PACKAGE</td>
-            <td rowSpan={2}>
-              WEIGHT
-            </td>
+            <td rowSpan={2}>WEIGHT</td>
             <td rowSpan={2}>
               HM
               <br />
@@ -348,22 +353,22 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             <td width="12%">CLASS</td>
           </tr>
           <tr style={{ textAlign: "center" }}>
-            <td>{props.pallets}</td>
+            <td>{props.totalPallets}</td>
             <td>PLT</td>
-            <td>{props.cartons}</td>
+            <td>{props.totalCartons}</td>
             <td>CTN</td>
-            <td>{props.weight}</td>
+            <td>{props.totalWeight}</td>
             <td></td>
             <td>{props.commodity}</td>
             <td>{props.nmfcCode}</td>
             <td></td>
           </tr>
           <tr style={{ textAlign: "center" }}>
-            <td>{props.pallets}</td>
+            <td>{props.totalPallets}</td>
             <td className="legacy-bol-grey-cell"></td>
-            <td>{props.cartons}</td>
+            <td>{props.totalCartons}</td>
             <td className="legacy-bol-grey-cell"></td>
-            <td>{props.weight}</td>
+            <td>{props.totalWeight}</td>
             <td className="legacy-bol-grey-cell"></td>
             <td style={{ fontSize: "8pt" }}>GRAND TOTAL</td>
             <td className="legacy-bol-grey-cell"></td>

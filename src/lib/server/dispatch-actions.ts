@@ -78,20 +78,27 @@ export async function createShipmentAction(formData: FormData) {
 }
 
 export async function generateBillOfLadingAction(formData: FormData) {
-  const payload = toFormObject(formData);
+  const payload = {
+    batchIds: formData
+      .getAll("batchIds")
+      .map((value) => String(value))
+      .filter(Boolean)
+      .join(","),
+    template: String(formData.get("template") ?? "STANDARD")
+  };
   const bill = await generateBillOfLading(payload);
 
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/bols");
   revalidatePath("/dispatch/routes");
 
-  const batchId = typeof payload.batchId === "string" ? encodeURIComponent(payload.batchId) : "";
+  const batchIds = encodeURIComponent(payload.batchIds);
 
   if (!bill) {
-    redirect(`/dispatch/bols?error=shipment-not-found&batchId=${batchId}`);
+    redirect(`/dispatch/bols?error=shipment-not-found&batchIds=${batchIds}`);
   }
 
-  redirect(`/dispatch/bols?generated=${encodeURIComponent(bill.bolNumber)}&batchId=${batchId}`);
+  redirect(`/dispatch/bols?generated=${encodeURIComponent(bill.bolNumber)}&batchIds=${batchIds}`);
 }
 
 export async function createRouteRunAction(formData: FormData) {

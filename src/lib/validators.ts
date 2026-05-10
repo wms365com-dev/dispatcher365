@@ -128,7 +128,7 @@ export const shipmentCreateSchema = z.object({
 });
 
 export const bolGenerateSchema = z.object({
-  batchId: z.string().trim().min(1).transform((value) => value.toUpperCase()),
+  batchIds: z.string().trim().min(1),
   template: z.enum(["STANDARD", "RETURN", "CDN", "LA"]).default("STANDARD")
 });
 

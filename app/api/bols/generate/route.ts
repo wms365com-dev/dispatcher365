@@ -17,12 +17,9 @@ export async function POST(request: Request) {
 
   return Response.json({
     data: {
-      shipmentId: bill.shipmentId,
       bolNumber: bill.bolNumber,
-      template: bill.templateVariant,
-      batchId: bill.shipment.batchId,
-      customerCode: bill.shipment.customer.customerCode,
-      freightTerms: bill.freightTerms
+      template: parsed.data.template,
+      batchIds: bill.batchIds
     }
   });
 }

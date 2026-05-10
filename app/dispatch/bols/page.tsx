@@ -10,7 +10,7 @@ import { getBolsData } from "@/lib/server/dispatch-service";
 interface BolsPageProps {
   searchParams?: Promise<{
     error?: string;
-    batchId?: string;
+    batchIds?: string | string[];
     generated?: string;
   }>;
 }
@@ -98,41 +98,73 @@ function formatLegacyMoney(value?: number | null) {
   return value.toFixed(2);
 }
 
+function normalizeSearchBatchIds(value?: string | string[]) {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  return [...new Set(raw.flatMap((entry) => entry.split(/[,\s]+/).map((item) => item.trim().toUpperCase()).filter(Boolean)))];
+}
+
 export default async function BolsPage({ searchParams }: BolsPageProps) {
   const params = searchParams ? await searchParams : undefined;
-  const { context, readyShipments, bills } = await getBolsData();
+  const selectedBatchIds = normalizeSearchBatchIds(params?.batchIds);
+  const selectedBatchSet = new Set(selectedBatchIds);
+  const { context, shipments, readyShipments, groupedBills } = await getBolsData();
 
-  const readyRows = readyShipments.map((shipment) => ({
+  const selectedShipments = shipments
+    .filter((shipment) => selectedBatchSet.has(shipment.batchId))
+    .sort((left, right) => left.batchId.localeCompare(right.batchId));
+
+  const selectedRows = selectedShipments.map((shipment) => ({
     batchId: shipment.batchId,
-    customer: `${shipment.customer.customerCode} / ${shipment.customer.name}`,
-    salesOrder: shipment.salesOrder ?? "-",
-    carrier: shipment.carrier?.carrierCode ?? "Unassigned",
-    freightClass: shipment.freightClass ?? "-",
-    status: <StatusPill status={shipment.status} />
+    customerNumber: shipment.customer.customerCode,
+    customerPo: shipment.customerPo ?? "-",
+    orderNumber: shipment.salesOrder ?? "-",
+    salesPerson: shipment.salesperson ?? "-",
+    status: <StatusPill status={shipment.status} />,
+    truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-"
   }));
 
-  const billRows = bills.map((bill) => ({
+  const allPackingRows = shipments.map((shipment) => ({
+    select: (
+      <input
+        defaultChecked={selectedBatchSet.has(shipment.batchId)}
+        name="batchIds"
+        type="checkbox"
+        value={shipment.batchId}
+      />
+    ),
+    batchId: shipment.batchId,
+    customerNumber: shipment.customer.customerCode,
+    customerPo: shipment.customerPo ?? "-",
+    orderNumber: shipment.salesOrder ?? "-",
+    status: <StatusPill status={shipment.status} />,
+    shippedDate: formatDate(shipment.shipDate),
+    truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-",
+    units: shipment.units,
+    cartons: shipment.cartons,
+    pallets: shipment.pallets,
+    weight: formatLegacyNumber(shipment.weightLb),
+    freightClass: shipment.freightClass ?? "-",
+    comments: shipment.comments ?? "-"
+  }));
+
+  const groupedRows = groupedBills.map((bill) => ({
     bolNumber: bill.bolNumber,
-    batchId: bill.shipment.batchId,
-    customer: `${bill.shipment.customer.customerCode} / ${bill.shipment.customer.name}`,
+    batches: bill.shipments.map((shipment) => shipment.batchId).join(", "),
+    customer: `${bill.shipments[0]?.customer.customerCode ?? "-"} / ${bill.shipments[0]?.customer.name ?? "-"}`,
+    count: bill.shipments.length,
     template: bill.templateVariant,
-    carrier: bill.carrierName ?? bill.shipment.carrier?.name ?? "-",
-    terms: bill.freightTerms ?? "-",
+    carrier: bill.carrierName ?? bill.shipments[0]?.carrier?.name ?? "-",
     createdAt: formatDate(bill.createdAt)
   }));
 
-  const previewBill =
-    (params?.generated
-      ? bills.find((bill) => bill.bolNumber === params.generated) ??
-        bills.find((bill) => bill.shipment.batchId === params.batchId)
-      : undefined) ?? bills[0];
-
-  const previewShipment = previewBill?.shipment;
-  const previewCustomer = previewShipment?.customer;
-  const previewCarrier = previewShipment?.carrier;
-  const previewThirdParty =
-    previewCustomer?.locations.find((location) => location.isDefault) ?? previewCustomer?.locations[0];
-  const previewIsLatestGenerated = Boolean(params?.generated && previewBill);
+  const previewGroup = params?.generated
+    ? groupedBills.find((bill) => bill.bolNumber === params.generated)
+    : undefined;
+  const previewShipments = previewGroup?.shipments ?? [];
+  const primaryShipment = previewShipments[0];
+  const previewCustomer = primaryShipment?.customer;
+  const previewCarrier = primaryShipment?.carrier;
+  const previewThirdParty = previewCustomer?.locations.find((location) => location.isDefault) ?? previewCustomer?.locations[0];
   const shipFromAddress = formatAddress([
     context.tenant.warehouseAddress1,
     context.tenant.warehouseAddress2
@@ -159,40 +191,47 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         : "-";
   const thirdPartyCityStateZip =
     previewCustomer?.shipCity || previewCustomer?.shipState || previewCustomer?.shipPostalCode
-      ? formatCityStateZip(
-          previewCustomer?.shipCity,
-          previewCustomer?.shipState,
-          previewCustomer?.shipPostalCode
-        )
-      : formatCityStateZip(
-          previewThirdParty?.city,
-          previewThirdParty?.state,
-          previewThirdParty?.postalCode
-        );
-  const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "prepaid").toUpperCase();
+      ? formatCityStateZip(previewCustomer.shipCity, previewCustomer.shipState, previewCustomer.shipPostalCode)
+      : formatCityStateZip(previewThirdParty?.city, previewThirdParty?.state, previewThirdParty?.postalCode);
+  const freightTerms = (
+    previewGroup?.freightTerms ??
+    previewCustomer?.freightTerms ??
+    "prepaid"
+  ).toUpperCase();
   const isCollect = freightTerms.includes("COLLECT");
   const isThirdParty = freightTerms.includes("THIRD");
   const isPrepaid = !isCollect && !isThirdParty;
-  const codAmount = previewShipment?.codAmount ?? 0;
+  const totalCartons = previewShipments.reduce((sum, shipment) => sum + shipment.cartons, 0);
+  const totalPallets = previewShipments.reduce((sum, shipment) => sum + shipment.pallets, 0);
+  const totalWeight = previewShipments.reduce((sum, shipment) => sum + shipment.weightLb, 0);
+  const totalCod = previewShipments.reduce((sum, shipment) => sum + (shipment.codAmount ?? 0), 0);
+  const carrierRows = previewShipments.map((shipment) => ({
+    customerPo: shipment.customerPo ?? "-",
+    cartons: formatLegacyNumber(shipment.cartons || shipment.units || 0),
+    weight: formatLegacyNumber(shipment.weightLb),
+    salesOrder: shipment.salesOrder ?? "-",
+    department: shipment.department ?? "",
+    batchId: shipment.batchId,
+    pallets: formatLegacyNumber(shipment.pallets)
+  }));
   const hasVicsPrefix = Boolean(context.tenant.gs1CompanyPrefix);
-  const currentDateLabel = formatBolHeaderDate(new Date());
 
   return (
     <>
       <PageHeader
         eyebrow="BOL"
         title="Bill of Lading"
-        description="This follows the live BOL flow: select a batch from the packing queue, generate the record, then hand it forward to truck run planning. When a GS1 company prefix is configured for the tenant, the BOL number follows the VICS-style numeric format."
+        description="This now follows the original AESON flow more closely: select one or more batch IDs, review the chosen packing slips, then create one grouped BOL document for that selection."
       />
 
       {params?.generated ? (
         <SectionCard
           className="print-hidden"
           title="BOL Generated"
-          description="The batch moved forward in the workflow and is now available for route planning."
+          description="The selected batches were grouped under one bill of lading number, just like the legacy workflow."
         >
           <p className="helper-text">
-            Batch <strong>{params.batchId ?? "-"}</strong> was assigned BOL <strong>{params.generated}</strong>.
+            BOL <strong>{params.generated}</strong> now covers <strong>{selectedBatchIds.join(", ") || "-"}</strong>.
           </p>
         </SectionCard>
       ) : null}
@@ -201,11 +240,10 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         <SectionCard
           className="print-hidden"
           title="BOL Notice"
-          description="The requested batch could not be matched to a tenant-owned shipment."
+          description="One or more selected batches could not be matched to tenant-owned shipments."
         >
           <p className="helper-text">
-            We could not find batch <strong>{params.batchId ?? "-"}</strong>. Use a batch from the Ready for BOL queue,
-            or create the shipment first.
+            We could not resolve every selected batch. Re-check the selected packing slips and try again.
           </p>
         </SectionCard>
       ) : null}
@@ -223,106 +261,93 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         </SectionCard>
       ) : null}
 
-      <SectionCard
-        className="bol-preview-card"
-        title={previewIsLatestGenerated ? "Generated BOL Preview" : "BOL Preview"}
-        description={
-          previewBill
-            ? "The generated bill now renders through the legacy print structure so dispatch can review the same document before routing."
-            : "Generate a BOL from the queue and the document preview will appear here."
-        }
-      >
-        {previewBill && previewShipment && previewCustomer ? (
-          <article className="legacy-bol-preview">
-            <LegacyBolDocument
-              approvedBy={previewShipment.approvedBy ?? ""}
-              authorization={previewShipment.authorization ?? ""}
-              batchId={previewShipment.batchId}
-              bolNumber={previewBill.bolNumber}
-              carrierName={previewBill.carrierName ?? previewCarrier?.name ?? ""}
-              cartons={formatLegacyNumber(previewShipment.cartons || previewShipment.units || 0)}
-              checkOrCash={previewShipment.checkOrCash ?? ""}
-              codInlineAmount={codAmount > 0 ? `$${formatLegacyMoney(codAmount)}` : "-"}
-              codLargeAmount={formatLegacyMoney(codAmount)}
-              commodity="HOUSEWARE"
-              currentDateLabel={currentDateLabel}
-              customerCode={previewCustomer.customerCode}
-              customerComments={previewCustomer.comments ?? previewShipment.comments ?? ""}
-              customerPo={previewShipment.customerPo ?? "-"}
-              deliveryDate={formatSlashDate(previewShipment.deliveryDate)}
-              department={previewShipment.department ?? ""}
-              freightCollect={isCollect}
-              freightPrepaid={isPrepaid}
-              freightThirdParty={isThirdParty}
-              nmfcCode="049390-06"
-              pallets={formatLegacyNumber(previewShipment.pallets)}
-              receivingHours={previewShipment.deliveryWindow === " TO " ? "" : previewShipment.deliveryWindow ?? ""}
-              salesOrder={previewShipment.salesOrder ?? ""}
-              scac={previewCarrier?.scac ?? previewShipment.scac ?? ""}
-              sealNumber={previewBill.sealNumber ?? ""}
-              shipFromAddress={shipFromAddress}
-              shipFromCityStateZip={shipFromCityStateZip}
-              shipFromPhone={context.tenant.warehousePhone ?? ""}
-              shipToAddress={shipToAddress}
-              shipToCityStateZip={shipToCityStateZip}
-              shipToName={previewCustomer.name}
-              shipToPhone={previewCustomer.phone ?? ""}
-              tenantName={context.tenant.name}
-              thirdPartyAddress={thirdPartyAddress}
-              thirdPartyCityStateZip={thirdPartyCityStateZip}
-              thirdPartyName={thirdPartyName}
-              trailerNumber={previewBill.trailerNumber ?? ""}
-              weight={formatLegacyNumber(previewShipment.weightLb)}
-            />
+      <form action="/dispatch/bols" className="print-hidden" id="bol-selector-form" method="get">
+        <div className="split-grid">
+          <SectionCard
+            title="Enter Batch ID"
+            description="Use the packing slip list below to select the orders you want grouped under one BOL."
+          >
+            <div className="field-grid">
+              <label className="field">
+                <span>Use</span>
+                <input readOnly value={String(selectedBatchIds.length)} />
+              </label>
+              <label className="field field--wide">
+                <span>Selected Batch IDs</span>
+                <input readOnly value={selectedBatchIds.join(", ")} />
+              </label>
+              <div className="field field--wide form-actions">
+                <button className="button" type="submit">
+                  Show Data
+                </button>
+              </div>
+            </div>
+          </SectionCard>
 
-            <BolPreviewActions />
-          </article>
-        ) : (
-          <p className="helper-text">
-            Once a batch is generated into a BOL, the full document preview will appear here for review before truck
-            run planning.
-          </p>
-        )}
-      </SectionCard>
+          <SectionCard
+            title="Packing Slip Was Chosen"
+            description="The old BOL screen staged the chosen packing rows first, then built the print form from that grouped selection."
+          >
+            {selectedRows.length ? (
+              <SimpleTable
+                columns={[
+                  { key: "batchId", label: "Batch ID" },
+                  { key: "customerNumber", label: "Customer number" },
+                  { key: "customerPo", label: "Customer PO" },
+                  { key: "orderNumber", label: "Order Number" },
+                  { key: "salesPerson", label: "Sales Person" },
+                  { key: "status", label: "Status" },
+                  { key: "truck", label: "Truck" }
+                ]}
+                rows={selectedRows}
+                emptyMessage="NODATA"
+              />
+            ) : (
+              <p className="helper-text">NODATA</p>
+            )}
+          </SectionCard>
+        </div>
 
-      <div className="split-grid">
         <SectionCard
-          className="print-hidden"
-          title="Ready for BOL"
-          description="Only shipments that have completed intake but do not yet have a BOL should appear in this queue."
+          title="All Packing Slip"
+          description="Choose one or more packing slips, then click Show Data to stage them into one grouped BOL."
         >
           <SimpleTable
             columns={[
-              { key: "batchId", label: "Batch" },
-              { key: "customer", label: "Customer" },
-              { key: "salesOrder", label: "Sales Order" },
-              { key: "carrier", label: "Carrier" },
-              { key: "freightClass", label: "Class" },
-              { key: "status", label: "Status" }
+              { key: "select", label: "Use" },
+              { key: "batchId", label: "Batch ID" },
+              { key: "customerNumber", label: "Customer number" },
+              { key: "customerPo", label: "Customer PO" },
+              { key: "orderNumber", label: "Order Number" },
+              { key: "status", label: "Status" },
+              { key: "shippedDate", label: "Shipped date" },
+              { key: "truck", label: "Truck" },
+              { key: "units", label: "Units" },
+              { key: "cartons", label: "Cartons" },
+              { key: "pallets", label: "Pallets" },
+              { key: "weight", label: "Weight" },
+              { key: "freightClass", label: "Freight Class" },
+              { key: "comments", label: "Comments" }
             ]}
-            rows={readyRows}
-            emptyMessage="No batches are waiting for BOL creation right now."
+            rows={allPackingRows}
+            emptyMessage="No packing slips are available right now."
           />
         </SectionCard>
+      </form>
 
+      {selectedBatchIds.length ? (
         <SectionCard
           className="print-hidden"
-          title="Generate BOL"
-          description="The old workbook staged BOL data across several sheets. The app now creates a real BOL record, preserves the print template, and uses the tenant GS1 prefix when VICS numbering is configured."
+          title="Generate Grouped BOL"
+          description="This follows the old AESON behavior: the selected packing slips are grouped under one bill number and printed on one BOL."
         >
           <form action={generateBillOfLadingAction} className="field-grid">
+            {selectedBatchIds.map((batchId) => (
+              <input key={batchId} name="batchIds" type="hidden" value={batchId} />
+            ))}
             <label className="field">
-              <span>Batch ID</span>
-              <select name="batchId" defaultValue="" required>
-                <option value="" disabled>
-                  Choose a batch waiting for BOL
-                </option>
-                {readyShipments.map((shipment) => (
-                  <option key={shipment.id} value={shipment.batchId}>
-                    {shipment.batchId} - {shipment.customer.customerCode} / {shipment.customer.name}
-                  </option>
-                ))}
-              </select>
+              <span>Batch Selection</span>
+              <input readOnly value={selectedBatchIds.join(", ")} />
             </label>
             <label className="field">
               <span>Template</span>
@@ -334,30 +359,88 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
               </select>
             </label>
             <div className="field field--wide form-actions">
-              <button className="button" type="submit" disabled={readyShipments.length === 0}>
+              <button className="button" type="submit">
                 Generate BOL
               </button>
             </div>
           </form>
         </SectionCard>
-      </div>
+      ) : null}
+
+      <SectionCard
+        className="bol-preview-card"
+        title={previewGroup ? "Generated Grouped BOL Preview" : "BOL Preview"}
+        description={
+          previewGroup
+            ? "The selected batches now render as one grouped bill of lading document."
+            : "Generate a BOL from the selected packing slips and the grouped document preview will appear here."
+        }
+      >
+        {previewGroup && primaryShipment && previewCustomer ? (
+          <article className="legacy-bol-preview">
+            <LegacyBolDocument
+              approvedBy={primaryShipment.approvedBy ?? ""}
+              authorization={primaryShipment.authorization ?? ""}
+              bolNumber={previewGroup.bolNumber}
+              carrierName={previewGroup.carrierName ?? previewCarrier?.name ?? ""}
+              carrierRows={carrierRows}
+              checkOrCash={primaryShipment.checkOrCash ?? ""}
+              codInlineAmount={totalCod > 0 ? `$${formatLegacyMoney(totalCod)}` : "-"}
+              codLargeAmount={formatLegacyMoney(totalCod)}
+              commodity="HOUSEWARE"
+              currentDateLabel={formatBolHeaderDate(new Date())}
+              customerCode={previewCustomer.customerCode}
+              customerComments={previewCustomer.comments ?? primaryShipment.comments ?? ""}
+              deliveryDate={formatSlashDate(primaryShipment.deliveryDate)}
+              freightCollect={isCollect}
+              freightPrepaid={isPrepaid}
+              freightThirdParty={isThirdParty}
+              nmfcCode="049390-06"
+              receivingHours={primaryShipment.deliveryWindow === " TO " ? "" : primaryShipment.deliveryWindow ?? ""}
+              scac={previewCarrier?.scac ?? primaryShipment.scac ?? ""}
+              sealNumber=""
+              shipFromAddress={shipFromAddress}
+              shipFromCityStateZip={shipFromCityStateZip}
+              shipFromPhone={context.tenant.warehousePhone ?? ""}
+              shipToAddress={shipToAddress}
+              shipToCityStateZip={shipToCityStateZip}
+              shipToName={previewCustomer.name}
+              shipToPhone={previewCustomer.phone ?? ""}
+              tenantName={context.tenant.name}
+              thirdPartyAddress={thirdPartyAddress}
+              thirdPartyCityStateZip={thirdPartyCityStateZip}
+              thirdPartyName={thirdPartyName}
+              totalCartons={formatLegacyNumber(totalCartons)}
+              totalPallets={formatLegacyNumber(totalPallets)}
+              totalWeight={formatLegacyNumber(totalWeight)}
+              trailerNumber=""
+            />
+
+            <BolPreviewActions />
+          </article>
+        ) : (
+          <p className="helper-text">
+            Select one or more batch IDs, click Show Data, then generate the BOL to see the grouped legacy print preview.
+          </p>
+        )}
+      </SectionCard>
 
       <SectionCard
         className="print-hidden"
         title="Generated BOLs"
-        description="This is now an auditable table instead of a set of duplicate print worksheets."
+        description="Grouped BOL numbers are listed once here, even when they cover multiple selected packing slips."
       >
         <SimpleTable
           columns={[
             { key: "bolNumber", label: "BOL Number" },
-            { key: "batchId", label: "Batch" },
+            { key: "batches", label: "Batch IDs" },
             { key: "customer", label: "Customer" },
+            { key: "count", label: "Pick Tickets" },
             { key: "template", label: "Template" },
             { key: "carrier", label: "Carrier" },
-            { key: "terms", label: "Freight Terms" },
             { key: "createdAt", label: "Created" }
           ]}
-          rows={billRows}
+          rows={groupedRows}
           emptyMessage="No BOLs have been generated yet."
         />
       </SectionCard>
