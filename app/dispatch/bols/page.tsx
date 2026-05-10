@@ -103,6 +103,23 @@ function normalizeSearchBatchIds(value?: string | string[]) {
   return [...new Set(raw.flatMap((entry) => entry.split(/[,\s]+/).map((item) => item.trim().toUpperCase()).filter(Boolean)))];
 }
 
+function matchesSelectedBatchIds(
+  shipmentBatchIds: string[],
+  selectedBatchIds: string[]
+) {
+  if (!selectedBatchIds.length) {
+    return true;
+  }
+
+  if (shipmentBatchIds.length !== selectedBatchIds.length) {
+    return false;
+  }
+
+  const shipmentKey = [...shipmentBatchIds].sort().join("|");
+  const selectedKey = [...selectedBatchIds].sort().join("|");
+  return shipmentKey === selectedKey;
+}
+
 export default async function BolsPage({ searchParams }: BolsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const selectedBatchIds = normalizeSearchBatchIds(params?.batchIds);
@@ -154,11 +171,18 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     count: bill.shipments.length,
     template: bill.templateVariant,
     carrier: bill.carrierName ?? bill.shipments[0]?.carrier?.name ?? "-",
-    createdAt: formatDate(bill.createdAt)
+    createdAt: formatDate(bill.updatedAt)
   }));
 
   const previewGroup = params?.generated
-    ? groupedBills.find((bill) => bill.bolNumber === params.generated)
+    ? groupedBills.find(
+        (bill) =>
+          bill.bolNumber === params.generated &&
+          matchesSelectedBatchIds(
+            bill.shipments.map((shipment) => shipment.batchId),
+            selectedBatchIds
+          )
+      ) ?? groupedBills.find((bill) => bill.bolNumber === params.generated)
     : undefined;
   const previewShipments = previewGroup?.shipments ?? [];
   const primaryShipment = previewShipments[0];

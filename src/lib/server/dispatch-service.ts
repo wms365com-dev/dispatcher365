@@ -130,20 +130,31 @@ async function getTenantScope() {
   };
 }
 
-async function createUniqueBolNumber(
-  tenantId: string,
-  gs1CompanyPrefix: string | null | undefined,
-  shipmentId: string,
-  batchId: string,
-  customerCode: string,
-  salesOrder?: string | null
-) {
+async function createUniqueBolNumber(input: {
+  tenantId: string;
+  gs1CompanyPrefix: string | null | undefined;
+  uniqueSeed: string;
+  customerCode: string;
+  salesOrder?: string | null;
+  fallbackBatchId: string;
+  reusableShipmentId?: string | null;
+}) {
+  const {
+    tenantId,
+    gs1CompanyPrefix,
+    uniqueSeed,
+    customerCode,
+    salesOrder,
+    fallbackBatchId,
+    reusableShipmentId
+  } = input;
+
   if (gs1CompanyPrefix) {
-    for (let attempt = 0; attempt < 8; attempt += 1) {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
       const candidate =
         buildVicsBolNumber({
           companyPrefix: gs1CompanyPrefix,
-          uniqueSeed: `${tenantId}:${shipmentId}:${batchId}:${salesOrder ?? ""}:${attempt}`
+          uniqueSeed: `${tenantId}:${uniqueSeed}:${attempt}`
         }) ?? undefined;
 
       if (!candidate) {
@@ -157,7 +168,7 @@ async function createUniqueBolNumber(
         }
       });
 
-      if (!existing || existing.shipmentId === shipmentId) {
+      if (!existing || (reusableShipmentId && existing.shipmentId === reusableShipmentId)) {
         return candidate;
       }
     }
@@ -165,21 +176,24 @@ async function createUniqueBolNumber(
 
   const baseNumber = buildBolNumber({
     customerCode,
-    salesOrder: salesOrder ?? batchId
+    salesOrder: salesOrder ?? fallbackBatchId
   });
 
-  const existing = await prisma.billOfLading.findFirst({
-    where: {
-      tenantId,
-      bolNumber: baseNumber
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const candidate = attempt === 0 ? baseNumber : `${baseNumber}-${attempt + 1}`;
+    const existing = await prisma.billOfLading.findFirst({
+      where: {
+        tenantId,
+        bolNumber: candidate
+      }
+    });
+
+    if (!existing || (reusableShipmentId && existing.shipmentId === reusableShipmentId)) {
+      return candidate;
     }
-  });
-
-  if (!existing || existing.shipmentId === shipmentId) {
-    return baseNumber;
   }
 
-  return `${baseNumber}-${batchId}`;
+  return `${baseNumber}-${Date.now().toString().slice(-6)}`;
 }
 
 export async function getAppContext() {
@@ -334,7 +348,7 @@ export async function getPackingSlipsData(customerLookup?: string) {
         carrier: true,
         bol: true
       },
-      orderBy: [{ createdAt: "desc" }]
+      orderBy: [{ updatedAt: "desc" }]
     })
   ]);
 
@@ -385,7 +399,7 @@ export async function getBolsData() {
           }
         }
       },
-      orderBy: [{ createdAt: "desc" }]
+      orderBy: [{ updatedAt: "desc" }]
     })
   ]);
 
@@ -396,8 +410,8 @@ export async function getBolsData() {
       if (current) {
         current.shipments.push(bill.shipment);
         current.billIds.push(bill.id);
-        if (bill.createdAt > current.createdAt) {
-          current.createdAt = bill.createdAt;
+        if (bill.updatedAt > current.updatedAt) {
+          current.updatedAt = bill.updatedAt;
           current.templateVariant = bill.templateVariant;
           current.freightTerms = bill.freightTerms;
           current.carrierName = bill.carrierName;
@@ -410,7 +424,7 @@ export async function getBolsData() {
           templateVariant: bill.templateVariant,
           freightTerms: bill.freightTerms,
           carrierName: bill.carrierName,
-          createdAt: bill.createdAt,
+          updatedAt: bill.updatedAt,
           shipments: [bill.shipment]
         });
       }
@@ -423,7 +437,7 @@ export async function getBolsData() {
       templateVariant: string;
       freightTerms: string | null;
       carrierName: string | null;
-      createdAt: Date;
+      updatedAt: Date;
       shipments: typeof bills[number]["shipment"][];
     }>())
   )
@@ -431,7 +445,7 @@ export async function getBolsData() {
       ...group,
       shipments: [...group.shipments].sort((left, right) => left.batchId.localeCompare(right.batchId))
     }))
-    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+    .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime());
 
   return {
     context: { tenant, user },
@@ -884,7 +898,8 @@ export async function generateBillOfLading(input: unknown) {
     },
     include: {
       customer: true,
-      carrier: true
+      carrier: true,
+      bol: true
     },
     orderBy: [{ batchId: "asc" }]
   });
@@ -894,15 +909,22 @@ export async function generateBillOfLading(input: unknown) {
   }
 
   const primaryShipment = shipments[0];
+  const normalizedSelection = shipments.map((shipment) => shipment.batchId).sort();
+  const existingGroupedNumbers = [...new Set(shipments.map((shipment) => shipment.bol?.bolNumber).filter(Boolean))];
+  const reusableSingleShipmentBolNumber =
+    shipments.length === 1 ? shipments[0].bol?.bolNumber ?? null : null;
 
-  const bolNumber = await createUniqueBolNumber(
-    tenantId,
-    tenant.gs1CompanyPrefix,
-    primaryShipment.id,
-    primaryShipment.batchId,
-    primaryShipment.customer.customerCode,
-    primaryShipment.salesOrder
-  );
+  const bolNumber =
+    reusableSingleShipmentBolNumber ??
+    (await createUniqueBolNumber({
+      tenantId,
+      gs1CompanyPrefix: tenant.gs1CompanyPrefix,
+      uniqueSeed: `${normalizedSelection.join(":")}:${existingGroupedNumbers.join(":")}:${Date.now()}`,
+      customerCode: primaryShipment.customer.customerCode,
+      salesOrder: primaryShipment.salesOrder ?? primaryShipment.batchId,
+      fallbackBatchId: primaryShipment.batchId,
+      reusableShipmentId: shipments.length === 1 ? primaryShipment.id : undefined
+    }));
 
   await Promise.all(
     shipments.map((shipment) =>
