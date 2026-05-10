@@ -46,18 +46,45 @@ interface LegacyBolDocumentProps {
   customerComments: string;
 }
 
-const squareMark = "\u2610";
+interface LegacyBolPageProps {
+  props: LegacyBolDocumentProps;
+  rows: LegacyBolDocumentProps["carrierRows"];
+}
 
-function AddressCell({
+const CARRIER_ROWS_PER_PAGE = 6;
+
+function chunkCarrierRows(rows: LegacyBolDocumentProps["carrierRows"]) {
+  if (!rows.length) {
+    return [[]];
+  }
+
+  const chunks: LegacyBolDocumentProps["carrierRows"][] = [];
+
+  for (let index = 0; index < rows.length; index += CARRIER_ROWS_PER_PAGE) {
+    chunks.push(rows.slice(index, index + CARRIER_ROWS_PER_PAGE));
+  }
+
+  return chunks;
+}
+
+function InlineCheck({ checked }: { checked: boolean }) {
+  return <span className="legacy-bol-inline-box">{checked ? "x" : ""}</span>;
+}
+
+function OutlineSquare() {
+  return <span className="legacy-bol-outline-square" aria-hidden="true" />;
+}
+
+function AddressRow({
   label,
   value,
   bold = false,
-  valueFontSize = "9pt"
+  fontSize = "9pt"
 }: {
   label: string;
   value: string;
   bold?: boolean;
-  valueFontSize?: string;
+  fontSize?: string;
 }) {
   return (
     <td width="50%">
@@ -67,7 +94,7 @@ function AddressCell({
           width: "70%",
           float: "left",
           fontWeight: bold ? 700 : 400,
-          fontSize: valueFontSize
+          fontSize
         }}
       >
         {value}
@@ -76,7 +103,7 @@ function AddressCell({
   );
 }
 
-function RightLabelCell({ children }: { children: ReactNode }) {
+function RightLabel({ children }: { children: ReactNode }) {
   return (
     <td width="25%" style={{ fontSize: "8pt" }}>
       {children}
@@ -84,15 +111,7 @@ function RightLabelCell({ children }: { children: ReactNode }) {
   );
 }
 
-function BoxMark({ checked }: { checked: boolean }) {
-  return <span className="legacy-bol-inline-box">{checked ? "x" : ""}</span>;
-}
-
-function IconBoxMark() {
-  return <span className="legacy-bol-icon-box">{squareMark}</span>;
-}
-
-export function LegacyBolDocument(props: LegacyBolDocumentProps) {
+function LegacyBolPage({ props, rows }: LegacyBolPageProps) {
   return (
     <div className="legacy-bol-paper">
       <table className="legacy-bol-tabledata legacy-bol-noborder">
@@ -112,62 +131,62 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
           <tr>
             <td
               className="legacy-bol-bg"
-              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
               width="50%"
+              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
             >
               <span>SHIP FROM</span>
             </td>
-            <RightLabelCell>Bill of Lading Number:</RightLabelCell>
+            <RightLabel>Bill of Lading Number:</RightLabel>
             <td width="25%">{props.bolNumber}</td>
           </tr>
           <tr>
-            <AddressCell bold label=" Name:" value={props.tenantName} valueFontSize="10pt" />
-            <RightLabelCell>AUTHORIZATION NUMBER</RightLabelCell>
+            <AddressRow bold fontSize="10pt" label=" Name:" value={props.tenantName} />
+            <RightLabel>AUTHORIZATION NUMBER</RightLabel>
             <td width="25%">{props.authorization}</td>
           </tr>
           <tr>
-            <AddressCell label=" Address:" value={props.shipFromAddress} />
-            <RightLabelCell>CARRIER NAME:</RightLabelCell>
+            <AddressRow label=" Address:" value={props.shipFromAddress} />
+            <RightLabel>CARRIER NAME:</RightLabel>
             <td width="25%">{props.carrierName}</td>
           </tr>
           <tr>
-            <AddressCell label=" City/State/Zip:" value={props.shipFromCityStateZip} />
-            <RightLabelCell>SCAC:</RightLabelCell>
+            <AddressRow label=" City/State/Zip:" value={props.shipFromCityStateZip} />
+            <RightLabel>SCAC:</RightLabel>
             <td width="25%">{props.scac}</td>
           </tr>
           <tr>
             <td width="50%">
               <div style={{ width: "30%", float: "left", fontSize: "8pt" }}> SID#:</div>
               <div style={{ width: "70%", float: "left" }}>
-                TEL: {props.shipFromPhone} &nbsp;&nbsp;FOB: <IconBoxMark />
+                TEL: {props.shipFromPhone} &nbsp;&nbsp;FOB: <OutlineSquare />
               </div>
             </td>
-            <RightLabelCell>Trailer Number:</RightLabelCell>
+            <RightLabel>Trailer Number:</RightLabel>
             <td width="25%">{props.trailerNumber}</td>
           </tr>
 
           <tr>
             <td
               className="legacy-bol-bg"
-              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
               width="50%"
+              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
             >
               <span>SHIP TO</span>
             </td>
-            <RightLabelCell>Seal Number(s):</RightLabelCell>
+            <RightLabel>Seal Number(s):</RightLabel>
             <td width="25%">{props.sealNumber}</td>
           </tr>
           <tr>
-            <AddressCell bold label=" Name:" value={props.shipToName} valueFontSize="10pt" />
-            <RightLabelCell>Customer Code</RightLabelCell>
+            <AddressRow bold fontSize="10pt" label=" Name:" value={props.shipToName} />
+            <RightLabel>Customer Code</RightLabel>
             <td width="25%">{props.customerCode}</td>
           </tr>
           <tr>
-            <AddressCell label=" Address:" value={props.shipToAddress} />
+            <AddressRow label=" Address:" value={props.shipToAddress} />
             <td colSpan={2}></td>
           </tr>
           <tr>
-            <AddressCell label=" City/State/Zip:" value={props.shipToCityStateZip} />
+            <AddressRow label=" City/State/Zip:" value={props.shipToCityStateZip} />
             <td colSpan={2} rowSpan={2}></td>
           </tr>
           <tr>
@@ -180,21 +199,21 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
           <tr>
             <td
               className="legacy-bol-bg"
-              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
               width="50%"
+              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
             >
               <span>THIRD PARTY FREIGHT CHARGES BILL TO</span>
             </td>
             <td colSpan={2} rowSpan={4}></td>
           </tr>
           <tr>
-            <AddressCell bold label=" Name:" value={props.thirdPartyName} valueFontSize="10pt" />
+            <AddressRow bold fontSize="10pt" label=" Name:" value={props.thirdPartyName} />
           </tr>
           <tr>
-            <AddressCell label=" Address:" value={props.thirdPartyAddress} />
+            <AddressRow label=" Address:" value={props.thirdPartyAddress} />
           </tr>
           <tr>
-            <AddressCell label=" City/State/Zip:" value={props.thirdPartyCityStateZip} />
+            <AddressRow label=" City/State/Zip:" value={props.thirdPartyCityStateZip} />
           </tr>
         </tbody>
       </table>
@@ -206,26 +225,26 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             <td style={{ textAlign: "center" }}></td>
             <td width="18%">&nbsp;</td>
             <td rowSpan={2} width="50%">
-              <span style={{ fontSize: "8pt" }}>Freight Charge Terms:</span>{" "}
-              <span style={{ fontSize: "6pt" }}>(freight charges are prepaid unless marked otherwise)</span>
+              <span style={{ fontSize: "8pt" }}>Freight Charge Terms:</span>
+              <span style={{ fontSize: "6pt" }}> (freight charges are prepaid unless marked otherwise)</span>
               <br />
               <div style={{ marginTop: "5px" }}>
                 <div style={{ width: "33%", float: "left" }}>
                   <span style={{ fontSize: "8pt", float: "left" }}>Prepaid</span>
                   <span style={{ float: "right", marginRight: "50px" }}>
-                    <BoxMark checked={props.freightPrepaid} />
+                    <InlineCheck checked={props.freightPrepaid} />
                   </span>
                 </div>
                 <div style={{ width: "33%", float: "left" }}>
                   <span style={{ fontSize: "8pt", float: "left" }}>Collect</span>
                   <span style={{ float: "right", marginRight: "50px" }}>
-                    <BoxMark checked={props.freightCollect} />
+                    <InlineCheck checked={props.freightCollect} />
                   </span>
                 </div>
                 <div style={{ width: "33%", float: "left" }}>
                   <span style={{ fontSize: "8pt", float: "left" }}>3rd Party</span>
                   <span style={{ float: "right", marginRight: "50px" }}>
-                    <BoxMark checked={props.freightThirdParty} />
+                    <InlineCheck checked={props.freightThirdParty} />
                   </span>
                 </div>
               </div>
@@ -246,9 +265,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
               <div style={{ width: "100%", textAlign: "center", float: "left", fontSize: "8pt" }}>
                 Master Bill of Lading with attached
               </div>
-              <div
-                style={{ float: "left", width: "30%", fontSize: "6pt", paddingTop: "10px", textAlign: "center" }}
-              >
+              <div style={{ float: "left", width: "30%", fontSize: "6pt", paddingTop: "10px", textAlign: "center" }}>
                 (check box)
               </div>
               <div style={{ float: "left", width: "70%", fontSize: "9pt", paddingTop: "5px" }}>
@@ -268,10 +285,10 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
         <tbody>
           <tr>
             <td
-              className="legacy-bol-bg"
               colSpan={9}
-              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
+              className="legacy-bol-bg"
               width="100%"
+              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
             >
               <span>CARRIER INFORMATION</span>
             </td>
@@ -282,7 +299,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             </td>
             <td rowSpan={2}># PKGS</td>
             <td rowSpan={2}>WEIGHT</td>
-            <td colSpan={2} rowSpan={2}>
+            <td rowSpan={2} colSpan={2}>
               PALLETS / SLIP <br />
               (circle one)
             </td>
@@ -295,7 +312,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             <td>DEPT #</td>
             <td>BATCH ID</td>
           </tr>
-          {props.carrierRows.map((row) => (
+          {rows.map((row) => (
             <tr key={row.batchId} style={{ fontWeight: "bold", textAlign: "center" }}>
               <td>{row.customerPo}</td>
               <td>{row.cartons}</td>
@@ -311,7 +328,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             <td>GRAND TOTAL</td>
             <td style={{ fontWeight: "bold" }}>{props.totalCartons}</td>
             <td style={{ fontWeight: "bold" }}>{props.totalWeight}</td>
-            <td className="legacy-bol-grey-cell" colSpan={5}></td>
+            <td colSpan={5} className="legacy-bol-grey-cell"></td>
           </tr>
         </tbody>
       </table>
@@ -320,10 +337,10 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
         <tbody>
           <tr>
             <td
-              className="legacy-bol-bg"
               colSpan={9}
-              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
+              className="legacy-bol-bg"
               width="100%"
+              style={{ color: "white", fontWeight: "bold", fontSize: "8pt", position: "relative", textAlign: "center" }}
             >
               <span>CUSTOMER ORDER INFORMATION</span>
             </td>
@@ -334,8 +351,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             <td rowSpan={2}>WEIGHT</td>
             <td rowSpan={2}>
               HM
-              <br />
-              (X)
+              <br /> (X)
             </td>
             <td width="40%">COMMODITY DESCRIPTION</td>
             <td colSpan={2}>LTL ONLY</td>
@@ -390,31 +406,33 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
                 <div style={{ float: "left", width: "30%", fontSize: "8pt", textAlign: "right", paddingTop: "4px" }}>
                   COD Amount $
                 </div>
-                <div style={{ float: "left", width: "70%", fontSize: "12pt", fontWeight: "bold", paddingLeft: "20px" }}>
+                <div
+                  style={{ float: "left", width: "70%", fontSize: "12pt", fontWeight: "bold", paddingLeft: "20px" }}
+                >
                   $ {props.codLargeAmount}
                 </div>
               </div>
               <div style={{ width: "100%", float: "left", paddingTop: "4px" }}>
                 <div style={{ float: "left", width: "30%", fontSize: "8pt", textAlign: "right" }}>Fee Terms:</div>
                 <div style={{ float: "left", width: "30%", fontSize: "8pt", paddingLeft: "20px" }}>
-                  Collect:<span style={{ marginLeft: "20px" }}><IconBoxMark /></span>
+                  Collect:<span style={{ marginLeft: "20px" }}><OutlineSquare /></span>
                 </div>
                 <div style={{ float: "left", width: "30%", fontSize: "8pt", paddingLeft: "20px" }}>
-                  Prepaid:<span style={{ marginLeft: "20px" }}><IconBoxMark /></span>
+                  Prepaid:<span style={{ marginLeft: "20px" }}><OutlineSquare /></span>
                 </div>
               </div>
               <div style={{ width: "100%", float: "left", paddingTop: "4px" }}>
                 <div style={{ float: "left", width: "30%", fontSize: "8pt", textAlign: "right" }}>&nbsp;</div>
                 <div style={{ float: "left", width: "70%", fontSize: "8pt", paddingLeft: "20px" }}>
-                  Customer check acceptable:<span style={{ marginLeft: "20px" }}><IconBoxMark /></span>
+                  Customer check acceptable:<span style={{ marginLeft: "20px" }}><OutlineSquare /></span>
                 </div>
               </div>
             </td>
           </tr>
           <tr>
             <td colSpan={2} style={{ fontSize: "8pt" }} width="100%">
-              NOTE: Liability Limitation for loss or damage in this shipment may be applicable. See 49 U.S.C. - 14706(c)(1)
-              (A) and (B).
+              NOTE: Liability Limitation for loss or damage in this shipment may be applicable. See 49 U.S.C. -
+              14706(c)(1)(A) and (B).
             </td>
           </tr>
           <tr>
@@ -440,7 +458,7 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
         <tbody>
           <tr>
             <td style={{ fontSize: "8pt", verticalAlign: "top" }} width="33%">
-              <div style={{ fontWeight: "bold", textAlign: "center", width: "100%" }}>SHIPPER SIGNATURE / SHIP DATE</div>
+              <div style={{ width: "100%", textAlign: "center", fontWeight: "bold" }}>SHIPPER SIGNATURE / SHIP DATE</div>
               <div style={{ width: "100%", fontSize: "6pt", lineHeight: "12pt" }}>
                 This is to certify that the above named materials are properly classified, packaged, marked and labeled, and
                 are in proper condition for transportation according to the applicable regulations of the DOT.
@@ -451,22 +469,22 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
                 <div style={{ width: "40%", float: "left" }}>
                   <u style={{ fontSize: "8pt" }}>Trailer Loaded</u>
                   <p>
-                    <IconBoxMark /> By Shipper
+                    <OutlineSquare /> By Shipper
                   </p>
                   <p>
-                    <IconBoxMark /> By Driver
+                    <OutlineSquare /> By Driver
                   </p>
                 </div>
                 <div style={{ width: "60%", float: "left" }}>
                   <u style={{ fontSize: "8pt" }}>Freight Counted</u>
                   <p>
-                    <IconBoxMark /> By Shipper
+                    <OutlineSquare /> By Shipper
                   </p>
                   <p>
-                    <IconBoxMark /> By Driver/pallets said to contain
+                    <OutlineSquare /> By Driver/pallets said to contain
                   </p>
                   <p>
-                    <IconBoxMark /> By Driver/Pieces
+                    <OutlineSquare /> By Driver/Pieces
                   </p>
                 </div>
               </div>
@@ -493,7 +511,10 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
             </td>
           </tr>
           <tr>
-            <td colSpan={2} style={{ fontSize: "10pt", fontWeight: "bold", textAlign: "center", verticalAlign: "middle" }}>
+            <td
+              colSpan={2}
+              style={{ fontSize: "10pt", fontWeight: "bold", textAlign: "center", verticalAlign: "middle" }}
+            >
               {props.customerComments}
             </td>
             <td style={{ verticalAlign: "top" }}>
@@ -519,6 +540,18 @@ export function LegacyBolDocument(props: LegacyBolDocumentProps) {
           </tr>
         </tbody>
       </table>
+    </div>
+  );
+}
+
+export function LegacyBolDocument(props: LegacyBolDocumentProps) {
+  const pages = chunkCarrierRows(props.carrierRows);
+
+  return (
+    <div className="legacy-bol-stack">
+      {pages.map((rows, index) => (
+        <LegacyBolPage key={`${props.bolNumber}-${index + 1}`} props={props} rows={rows} />
+      ))}
     </div>
   );
 }

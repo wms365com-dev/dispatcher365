@@ -654,6 +654,11 @@ ul {
   align-items: start;
 }
 
+.legacy-bol-stack {
+  display: grid;
+  gap: 24px;
+}
+
 .print-hidden {
   display: block;
 }
@@ -724,11 +729,13 @@ ul {
   font-size: 8pt;
 }
 
-.legacy-bol-icon-box {
+.legacy-bol-outline-square {
   display: inline-block;
-  font-size: 10pt;
-  line-height: 1;
-  font-weight: 700;
+  width: 10px;
+  height: 10px;
+  margin-left: 2px;
+  border: 1px solid #000;
+  vertical-align: middle;
 }
 
 .legacy-bol-grey-cell {
@@ -1006,6 +1013,10 @@ ul {
     display: block;
   }
 
+  .legacy-bol-stack {
+    display: block;
+  }
+
   .legacy-bol-paper {
     width: 8.5in;
     min-height: 11in;
@@ -1013,6 +1024,13 @@ ul {
     padding: 0.5cm;
     border: 0;
     font: 10pt Arial, Helvetica, sans-serif;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .legacy-bol-paper:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .legacy-bol-paper,
