@@ -654,24 +654,28 @@ ul {
   align-items: start;
 }
 
+.print-hidden {
+  display: block;
+}
+
 .legacy-bol-sheet {
   background: #fff;
   border: 1px solid #d3d3d3;
-  padding: 12px;
+  padding: 10px;
   color: #000;
-  font-size: 0.75rem;
+  font-size: 0.73rem;
 }
 
 .legacy-bol-sheet__heading {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .legacy-bol-sheet__heading strong {
   justify-self: center;
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
 .legacy-bol-sheet__hero {
@@ -712,12 +716,64 @@ ul {
 }
 
 .legacy-bol-table__terms {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .legacy-bol-table__total td {
   font-weight: 700;
   background: #efefef;
+}
+
+.legacy-bol-terms-text {
+  font-size: 0.6rem;
+  line-height: 1.3;
+}
+
+.legacy-bol-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+
+.legacy-bol-checkbox-row--compact {
+  gap: 6px;
+}
+
+.legacy-bol-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #000;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+.legacy-bol-master-bill {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 8px;
+  margin-top: 6px;
+  align-items: start;
+}
+
+.legacy-bol-master-bill__note {
+  font-size: 0.62rem;
+}
+
+.legacy-bol-commodity-note {
+  font-size: 0.56rem;
+  line-height: 1.2;
+  color: #333;
+}
+
+.legacy-bol-commodity-value {
+  margin-top: 4px;
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .legacy-bol-sheet__settlement {
@@ -741,28 +797,106 @@ ul {
   font-size: 0.75rem;
 }
 
+.legacy-bol-sheet__legal {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid #cfcfcf;
+  border-top: 0;
+}
+
+.legacy-bol-sheet__legal-copy {
+  min-height: 76px;
+  padding: 6px;
+  border-right: 1px solid #cfcfcf;
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.legacy-bol-sheet__legal-copy:last-child {
+  border-right: 0;
+}
+
 .legacy-bol-signatures {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+  grid-template-columns: 1.45fr 1.1fr 1.3fr;
+  gap: 0;
+  margin-top: 0;
+  border-left: 1px solid #cfcfcf;
+  border-right: 1px solid #cfcfcf;
+  border-bottom: 1px solid #cfcfcf;
 }
 
 .legacy-bol-signatures__block {
-  min-height: 132px;
+  min-height: 150px;
   padding: 8px;
-  border: 1px solid #cfcfcf;
+  border-right: 1px solid #cfcfcf;
   display: grid;
   gap: 8px;
   align-content: start;
   font-size: 0.68rem;
 }
 
+.legacy-bol-signatures__block:last-child {
+  border-right: 0;
+}
+
+.legacy-bol-signatures__block--wide p {
+  line-height: 1.65;
+}
+
+.legacy-bol-signatures__block--checks {
+  grid-template-columns: 1fr 1fr;
+  align-content: start;
+}
+
+.legacy-bol-check-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.legacy-bol-check-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legacy-bol-signatures__stack {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+
+.legacy-bol-signatures__stack .legacy-bol-signatures__block {
+  min-height: 120px;
+  border-right: 0;
+  border-bottom: 1px solid #cfcfcf;
+}
+
+.legacy-bol-signatures__stack .legacy-bol-signatures__block:last-child {
+  border-bottom: 0;
+}
+
 .legacy-bol-signatures__line {
-  min-height: 36px;
+  min-height: 42px;
   display: flex;
   align-items: end;
   color: #8c8c8c;
+}
+
+.legacy-bol-signatures__driver-label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+  color: #b8b8b8;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.legacy-bol-signatures__date-line {
+  display: flex;
+  justify-content: center;
+  font-size: 0.7rem;
 }
 
 .legacy-bol-actions {
@@ -993,7 +1127,8 @@ ul {
   .dispatch-rail,
   .dispatch-topbar,
   .page-header,
-  .legacy-bol-actions {
+  .legacy-bol-actions,
+  .print-hidden {
     display: none;
   }
 
@@ -1013,5 +1148,37 @@ ul {
   .legacy-bol-sheet {
     border: 0;
     box-shadow: none;
+  }
+
+  .bol-preview-card {
+    border: 0;
+  }
+
+  .bol-preview-card .section-card__header {
+    display: none;
+  }
+
+  .bol-preview-card > :not(.section-card__header) {
+    padding: 0;
+  }
+
+  .legacy-bol-preview {
+    display: block;
+  }
+
+  .legacy-bol-sheet {
+    width: 8.5in;
+    min-height: 11in;
+    margin: 0 auto;
+    padding: 0.22in;
+    border: 0;
+    font-size: 9.5px;
+  }
+
+  .legacy-bol-table th,
+  .legacy-bol-table td,
+  .legacy-bol-sheet__legal-copy,
+  .legacy-bol-signatures__block {
+    border-color: #bdbdbd;
   }
 }

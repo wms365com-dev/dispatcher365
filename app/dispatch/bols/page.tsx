@@ -43,6 +43,17 @@ function formatAddress(parts: Array<string | null | undefined>) {
   return values.length ? values.join(", ") : "-";
 }
 
+function formatCityStateZip(
+  city?: string | null,
+  state?: string | null,
+  postalCode?: string | null,
+  country?: string | null
+) {
+  const left = [city?.trim(), state?.trim()].filter(Boolean).join(", ");
+  const right = [postalCode?.trim(), country?.trim()].filter(Boolean).join(" ");
+  return [left, right].filter(Boolean).join(" ").trim() || "-";
+}
+
 function formatCurrency(value?: number | null) {
   if (typeof value !== "number") {
     return "-";
@@ -125,23 +136,25 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const shipToAddress = previewCustomer
     ? formatAddress([
         previewCustomer.billingAddress1,
-        previewCustomer.billingAddress2,
-        previewCustomer.city,
-        previewCustomer.state,
-        previewCustomer.postalCode,
-        previewCustomer.country
+        previewCustomer.billingAddress2
       ])
     : "-";
   const shipFromAddress = formatAddress([
-    context.tenant.warehouseName ?? context.tenant.name,
     context.tenant.warehouseAddress1,
     context.tenant.warehouseAddress2
   ]);
-  const shipFromCityStateZip = formatAddress([
+  const shipFromCityStateZip = formatCityStateZip(
     context.tenant.warehouseCity,
     context.tenant.warehouseState,
-    context.tenant.warehousePostalCode
-  ]);
+    context.tenant.warehousePostalCode,
+    context.tenant.warehouseCountry
+  );
+  const shipToCityStateZip = formatCityStateZip(
+    previewCustomer?.city,
+    previewCustomer?.state,
+    previewCustomer?.postalCode,
+    previewCustomer?.country
+  );
   const bolLineDescription = previewCustomer ? `${previewCustomer.customerCode} / ${previewCustomer.name}` : "Tenant freight shipment";
   const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "Prepaid").toUpperCase();
   const isCollect = freightTerms.includes("COLLECT");
@@ -162,6 +175,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
 
       {params?.generated ? (
         <SectionCard
+          className="print-hidden"
           title="BOL Generated"
           description="The batch moved forward in the workflow and is now available for route planning."
         >
@@ -173,6 +187,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
 
       {params?.error === "shipment-not-found" ? (
         <SectionCard
+          className="print-hidden"
           title="BOL Notice"
           description="The requested batch could not be matched to a tenant-owned shipment."
         >
@@ -185,6 +200,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
 
       {!hasVicsPrefix ? (
         <SectionCard
+          className="print-hidden"
           title="VICS Setup Notice"
           description="The layout follows the legacy VICS-style form, but full numeric VICS numbering needs a tenant GS1 company prefix."
         >
@@ -196,6 +212,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
       ) : null}
 
       <SectionCard
+        className="bol-preview-card"
         title={previewIsLatestGenerated ? "Generated BOL Preview" : "BOL Preview"}
         description={
           previewBill
@@ -238,7 +255,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     <tr>
                       <td className="legacy-bol-table__label">TEL / FOB:</td>
                       <td>
-                        {context.tenant.warehousePhone ?? "-"} / {context.tenant.warehouseFob ?? "-"}
+                        {context.tenant.warehousePhone ?? "-"} &nbsp; FOB: {context.tenant.warehouseFob ?? "□"}
                       </td>
                     </tr>
 
@@ -257,9 +274,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">City/State/Zip:</td>
-                      <td>
-                        {previewCustomer.city ?? "-"} {previewCustomer.state ?? ""} {previewCustomer.postalCode ?? ""}
-                      </td>
+                      <td>{shipToCityStateZip}</td>
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">SID#:</td>
@@ -341,7 +356,21 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     <td className="legacy-bol-table__label">RECEIVING HOURS:</td>
                     <td>{previewShipment.deliveryWindow ?? "-"}</td>
                     <td className="legacy-bol-table__terms">
-                      Prepaid [{isPrepaid ? "X" : " "}] &nbsp; Collect [{isCollect ? "X" : " "}] &nbsp; 3rd Party [ ]
+                      <div className="legacy-bol-terms-text">
+                        Freight charges are prepaid unless marked otherwise
+                      </div>
+                      <div className="legacy-bol-checkbox-row">
+                        <span>Prepaid</span>
+                        <span className="legacy-bol-checkbox">{isPrepaid ? "X" : ""}</span>
+                        <span>Collect</span>
+                        <span className="legacy-bol-checkbox">{isCollect ? "X" : ""}</span>
+                        <span>3rd Party</span>
+                        <span className="legacy-bol-checkbox"></span>
+                      </div>
+                      <div className="legacy-bol-master-bill">
+                        <span className="legacy-bol-master-bill__note">(check box)</span>
+                        <span>Master Bill of Lading with attached underlying Bills of Lading</span>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -415,8 +444,17 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     <td>CTN</td>
                     <td>{previewShipment.units}</td>
                     <td>PCS</td>
-                    <td>{orderCommodity}</td>
-                    <td>{previewShipment.freightClass ?? "-"}</td>
+                    <td>
+                      <div className="legacy-bol-commodity-note">
+                        Commodities requiring special or additional care or attention in handling or stowing must be so marked
+                        and packaged as to ensure safe transportation with ordinary care.
+                      </div>
+                      <div className="legacy-bol-commodity-value">{orderCommodity}</div>
+                    </td>
+                    <td>
+                      <div>NMFC # {previewShipment.department ?? "049390-06"}</div>
+                      <div>CLASS {previewShipment.freightClass ?? "-"}</div>
+                    </td>
                   </tr>
                   <tr className="legacy-bol-table__total">
                     <td colSpan={6}>GRAND TOTAL</td>
@@ -433,9 +471,20 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                   stated by the shipper to be not exceeding __________ per __________.
                 </div>
                 <div className="legacy-bol-sheet__cod">
-                  <div>COD Amount $ {formatCurrency(codAmount).replace("$", "").trim()}</div>
-                  <div>Fee Terms: Collect [{hasCod ? "X" : " "}] &nbsp; Prepaid [ ]</div>
-                  <div>Customer check acceptable: [ ]</div>
+                  <div>
+                    COD Amount $ <strong>{formatCurrency(codAmount).replace("$", "").trim()}</strong>
+                  </div>
+                  <div className="legacy-bol-checkbox-row legacy-bol-checkbox-row--compact">
+                    <span>Fee Terms:</span>
+                    <span>Collect:</span>
+                    <span className="legacy-bol-checkbox">{hasCod ? "X" : ""}</span>
+                    <span>Prepaid:</span>
+                    <span className="legacy-bol-checkbox"></span>
+                  </div>
+                  <div className="legacy-bol-checkbox-row legacy-bol-checkbox-row--compact">
+                    <span>Customer check acceptable:</span>
+                    <span className="legacy-bol-checkbox"></span>
+                  </div>
                 </div>
               </div>
 
@@ -444,20 +493,66 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                 and (B).
               </div>
 
+              <div className="legacy-bol-sheet__legal">
+                <div className="legacy-bol-sheet__legal-copy">
+                  RECEIVED, subject to individually determined rates or contracts that have been agreed upon in writing between
+                  the carrier and shipper, otherwise to the rates, classifications and rules that have been established by the
+                  carrier and are available to the shipper, on request, and to all applicable state and federal regulations.
+                </div>
+                <div className="legacy-bol-sheet__legal-copy">
+                  The carrier shall not make delivery of this shipment without payment of freight and all other lawful charges.
+                </div>
+              </div>
+
               <div className="legacy-bol-signatures">
-                <div className="legacy-bol-signatures__block">
+                <div className="legacy-bol-signatures__block legacy-bol-signatures__block--wide">
                   <strong>SHIPPER SIGNATURE / SHIP DATE</strong>
-                  <p>This is to certify that the above named materials are properly classified, packaged, marked and labeled.</p>
+                  <p>
+                    This is to certify that the above named materials are properly classified, packaged, marked and labeled, and
+                    are in proper condition for transportation according to the applicable regulations of the DOT.
+                  </p>
                 </div>
-                <div className="legacy-bol-signatures__block">
-                  <strong>CARRIER SIGNATURE / PICKUP DATE</strong>
-                  <div className="legacy-bol-signatures__line">________________________________</div>
-                  <span>DRIVER</span>
+                <div className="legacy-bol-signatures__block legacy-bol-signatures__block--checks">
+                  <div className="legacy-bol-check-stack">
+                    <strong>Trailer Loaded</strong>
+                    <div className="legacy-bol-check-option">
+                      <span className="legacy-bol-checkbox"></span>
+                      <span>By Shipper</span>
+                    </div>
+                    <div className="legacy-bol-check-option">
+                      <span className="legacy-bol-checkbox"></span>
+                      <span>By Driver</span>
+                    </div>
+                  </div>
+                  <div className="legacy-bol-check-stack">
+                    <strong>Freight Counted</strong>
+                    <div className="legacy-bol-check-option">
+                      <span className="legacy-bol-checkbox"></span>
+                      <span>By Shipper</span>
+                    </div>
+                    <div className="legacy-bol-check-option">
+                      <span className="legacy-bol-checkbox"></span>
+                      <span>By Driver/pallets said to contain</span>
+                    </div>
+                    <div className="legacy-bol-check-option">
+                      <span className="legacy-bol-checkbox"></span>
+                      <span>By Driver/Pieces</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="legacy-bol-signatures__block">
-                  <strong>RECEIVER SIGNATURE / DELIVERY DATE</strong>
-                  <div className="legacy-bol-signatures__line">________________________________</div>
-                  <span>RECEIVER</span>
+                <div className="legacy-bol-signatures__stack">
+                  <div className="legacy-bol-signatures__block">
+                    <strong>CARRIER SIGNATURE / PICKUP DATE</strong>
+                    <div className="legacy-bol-signatures__driver-label">DRIVER</div>
+                    <div className="legacy-bol-signatures__line">________________________________</div>
+                    <div className="legacy-bol-signatures__date-line">____ / ____ / ________</div>
+                  </div>
+                  <div className="legacy-bol-signatures__block">
+                    <strong>RECEIVER SIGNATURE / DELIVERY DATE</strong>
+                    <div className="legacy-bol-signatures__driver-label">RECEIVER</div>
+                    <div className="legacy-bol-signatures__line">________________________________</div>
+                    <div className="legacy-bol-signatures__date-line">____ / ____ / ________</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -474,6 +569,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
 
       <div className="split-grid">
         <SectionCard
+          className="print-hidden"
           title="Ready for BOL"
           description="Only shipments that have completed intake but do not yet have a BOL should appear in this queue."
         >
@@ -492,6 +588,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         </SectionCard>
 
         <SectionCard
+          className="print-hidden"
           title="Generate BOL"
           description="The old workbook staged BOL data across several sheets. The app now creates a real BOL record, preserves the print template, and uses the tenant GS1 prefix when VICS numbering is configured."
         >
@@ -528,6 +625,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
       </div>
 
       <SectionCard
+        className="print-hidden"
         title="Generated BOLs"
         description="This is now an auditable table instead of a set of duplicate print worksheets."
       >
