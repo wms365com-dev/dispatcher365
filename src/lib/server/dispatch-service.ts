@@ -926,38 +926,38 @@ export async function generateBillOfLading(input: unknown) {
       reusableShipmentId: shipments.length === 1 ? primaryShipment.id : undefined
     }));
 
-  await Promise.all(
-    shipments.map((shipment) =>
-      prisma.billOfLading.upsert({
-        where: { shipmentId: shipment.id },
-        update: {
-          bolNumber,
-          templateVariant: data.template,
-          freightTerms: shipment.customer.freightTerms,
-          carrierName: shipment.carrier?.name,
-          printedAt: null
-        },
-        create: {
-          tenantId,
-          shipmentId: shipment.id,
-          bolNumber,
-          templateVariant: data.template,
-          freightTerms: shipment.customer.freightTerms,
-          carrierName: shipment.carrier?.name
-        }
-      })
-    )
-  );
+  const shipmentIds = shipments.map((shipment) => shipment.id);
 
-  await prisma.shipment.updateMany({
-    where: {
-      tenantId,
-      id: {
-        in: shipments.map((shipment) => shipment.id)
+  await prisma.$transaction([
+    prisma.billOfLading.deleteMany({
+      where: {
+        tenantId,
+        shipmentId: {
+          in: shipmentIds
+        }
       }
-    },
-    data: { status: "BOL_CREATED" }
-  });
+    }),
+    prisma.billOfLading.createMany({
+      data: shipments.map((shipment) => ({
+        tenantId,
+        shipmentId: shipment.id,
+        bolNumber,
+        templateVariant: data.template,
+        freightTerms: shipment.customer.freightTerms,
+        carrierName: shipment.carrier?.name,
+        printedAt: null
+      }))
+    }),
+    prisma.shipment.updateMany({
+      where: {
+        tenantId,
+        id: {
+          in: shipmentIds
+        }
+      },
+      data: { status: "BOL_CREATED" }
+    })
+  ]);
 
   return {
     bolNumber,
