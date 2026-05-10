@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   buildBolNumber,
+  buildVicsBolNumber,
   buildEmailSubject,
   buildRfqSubject
 } from "@/lib/workbook/formulas";
@@ -14,6 +15,7 @@ const demoTenantSeeds = [
   {
     slug: "healtea",
     name: "Healtea",
+    gs1CompanyPrefix: "1234567",
     warehouseName: "Healtea Distribution",
     warehouseAddress1: "2820 16th Street, Building C",
     warehouseCity: "North Bergen",
@@ -26,6 +28,7 @@ const demoTenantSeeds = [
   {
     slug: "rootree",
     name: "Rootree",
+    gs1CompanyPrefix: "7654321",
     warehouseName: "Rootree Warehouse",
     warehouseAddress1: "15295 John Lucas Dr",
     warehouseCity: "Burlington",
@@ -636,10 +639,16 @@ export async function ensureDemoSeed() {
       salesOrder: shipment.salesOrder ?? shipment.batchId
     });
 
+    const vicsBolNumber =
+      buildVicsBolNumber({
+        companyPrefix: tenant.gs1CompanyPrefix ?? "",
+        uniqueSeed: `${tenant.id}:${shipment.id}:${shipment.batchId}:${shipment.salesOrder ?? ""}:seed`
+      }) ?? bolNumber;
+
     await prisma.billOfLading.upsert({
       where: { shipmentId: shipment.id },
       update: {
-        bolNumber,
+        bolNumber: vicsBolNumber,
         templateVariant: billSeed.templateVariant,
         freightTerms,
         carrierName: shipment.carrier?.name
@@ -647,7 +656,7 @@ export async function ensureDemoSeed() {
       create: {
         tenantId: tenant.id,
         shipmentId: shipment.id,
-        bolNumber,
+        bolNumber: vicsBolNumber,
         templateVariant: billSeed.templateVariant,
         freightTerms,
         carrierName: shipment.carrier?.name

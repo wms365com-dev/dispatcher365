@@ -73,6 +73,7 @@ model Tenant {
   id          String               @id @default(cuid())
   slug        String               @unique
   name        String
+  gs1CompanyPrefix String?
   warehouseName String?
   warehouseAddress1 String?
   warehouseAddress2 String?

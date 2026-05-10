@@ -10,6 +10,7 @@ export default async function CompaniesPage() {
   const rows = tenants.map((tenant) => ({
     name: tenant.name,
     slug: tenant.slug,
+    gs1Prefix: tenant.gs1CompanyPrefix ?? "-",
     users: String(tenant._count.memberships),
     customers: String(tenant._count.customers),
     shipments: String(tenant._count.shipments),
@@ -41,6 +42,10 @@ export default async function CompaniesPage() {
             <label className="field">
               <span>Warehouse Name</span>
               <input name="warehouseName" placeholder="Healtea Distribution" />
+            </label>
+            <label className="field">
+              <span>GS1 Company Prefix</span>
+              <input name="gs1CompanyPrefix" placeholder="1234567" />
             </label>
             <label className="field">
               <span>Warehouse Phone</span>
@@ -86,6 +91,7 @@ export default async function CompaniesPage() {
             columns={[
               { key: "name", label: "Company" },
               { key: "slug", label: "Slug" },
+              { key: "gs1Prefix", label: "GS1 Prefix" },
               { key: "warehouse", label: "Warehouse" },
               { key: "users", label: "Users" },
               { key: "customers", label: "Customers" },

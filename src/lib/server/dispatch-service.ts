@@ -16,6 +16,7 @@ import {
 } from "@/lib/validators";
 import {
   buildBolNumber,
+  buildVicsBolNumber,
   buildEmailSubject,
   buildRfqSubject,
   calculateDensity,
@@ -127,11 +128,37 @@ async function getTenantScope() {
 
 async function createUniqueBolNumber(
   tenantId: string,
+  gs1CompanyPrefix: string | null | undefined,
   shipmentId: string,
   batchId: string,
   customerCode: string,
   salesOrder?: string | null
 ) {
+  if (gs1CompanyPrefix) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const candidate =
+        buildVicsBolNumber({
+          companyPrefix: gs1CompanyPrefix,
+          uniqueSeed: `${tenantId}:${shipmentId}:${batchId}:${salesOrder ?? ""}:${attempt}`
+        }) ?? undefined;
+
+      if (!candidate) {
+        break;
+      }
+
+      const existing = await prisma.billOfLading.findFirst({
+        where: {
+          tenantId,
+          bolNumber: candidate
+        }
+      });
+
+      if (!existing || existing.shipmentId === shipmentId) {
+        return candidate;
+      }
+    }
+  }
+
   const baseNumber = buildBolNumber({
     customerCode,
     salesOrder: salesOrder ?? batchId
@@ -775,7 +802,7 @@ export async function createShipment(input: unknown) {
 
 export async function generateBillOfLading(input: unknown) {
   const data = bolGenerateSchema.parse(input);
-  const { tenantId } = await getTenantScope();
+  const { tenantId, tenant } = await getTenantScope();
 
   const shipment = await prisma.shipment.findUnique({
     where: {
@@ -796,6 +823,7 @@ export async function generateBillOfLading(input: unknown) {
 
   const bolNumber = await createUniqueBolNumber(
     tenantId,
+    tenant.gs1CompanyPrefix,
     shipment.id,
     shipment.batchId,
     shipment.customer.customerCode,
@@ -1050,6 +1078,7 @@ export async function createCompany(input: unknown) {
     data: {
       slug: data.slug,
       name: data.name,
+      gs1CompanyPrefix: data.gs1CompanyPrefix,
       warehouseName: data.warehouseName,
       warehouseAddress1: data.warehouseAddress1,
       warehouseAddress2: data.warehouseAddress2,

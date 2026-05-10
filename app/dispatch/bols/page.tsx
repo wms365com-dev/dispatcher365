@@ -150,13 +150,14 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const hasCod = codAmount > 0;
   const orderReference = previewShipment?.customerPo ?? previewShipment?.salesOrder ?? previewShipment?.batchId ?? "-";
   const orderCommodity = previewShipment?.department ?? "GENERAL FREIGHT";
+  const hasVicsPrefix = Boolean(context.tenant.gs1CompanyPrefix);
 
   return (
     <>
       <PageHeader
         eyebrow="BOL"
         title="Bill of Lading"
-        description="This follows the live BOL flow: select a batch from the packing queue, generate the record, then hand it forward to truck run planning."
+        description="This follows the live BOL flow: select a batch from the packing queue, generate the record, then hand it forward to truck run planning. When a GS1 company prefix is configured for the tenant, the BOL number follows the VICS-style numeric format."
       />
 
       {params?.generated ? (
@@ -178,6 +179,18 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
           <p className="helper-text">
             We could not find batch <strong>{params.batchId ?? "-"}</strong>. Use a batch from the Ready for BOL queue,
             or create the shipment first.
+          </p>
+        </SectionCard>
+      ) : null}
+
+      {!hasVicsPrefix ? (
+        <SectionCard
+          title="VICS Setup Notice"
+          description="The layout follows the legacy VICS-style form, but full numeric VICS numbering needs a tenant GS1 company prefix."
+        >
+          <p className="helper-text">
+            Add a GS1 company prefix in <strong>Company Manage</strong> to generate a VICS-style numeric BOL number.
+            Until then, the system falls back to the legacy custom number format.
           </p>
         </SectionCard>
       ) : null}
@@ -480,7 +493,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
 
         <SectionCard
           title="Generate BOL"
-          description="The old workbook staged BOL data across several sheets. The app now creates a real BOL record and keeps the template as metadata."
+          description="The old workbook staged BOL data across several sheets. The app now creates a real BOL record, preserves the print template, and uses the tenant GS1 prefix when VICS numbering is configured."
         >
           <form action={generateBillOfLadingAction} className="field-grid">
             <label className="field">

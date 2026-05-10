@@ -179,6 +179,10 @@ export const userCreateSchema = z.object({
 export const companyCreateSchema = z.object({
   name: z.string().trim().min(2),
   slug: z.string().trim().min(2).transform((value) => value.toLowerCase().replace(/[^a-z0-9-]+/g, "-")),
+  gs1CompanyPrefix: optionalText.refine(
+    (value) => !value || /^\d{6,10}$/.test(value),
+    "GS1 company prefix must be 6 to 10 digits."
+  ),
   warehouseName: optionalText,
   warehouseAddress1: optionalText,
   warehouseAddress2: optionalText,

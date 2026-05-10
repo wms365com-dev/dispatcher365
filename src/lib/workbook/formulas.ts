@@ -67,6 +67,65 @@ export function buildBolNumber(
   return `${shipment.customerCode}-${shipment.salesOrder}`;
 }
 
+function normalizeDigits(value: string): string {
+  return value.replace(/\D+/g, "");
+}
+
+function gs1Modulo10CheckDigit(body: string): string {
+  let total = 0;
+  let useThree = true;
+
+  for (let index = body.length - 1; index >= 0; index -= 1) {
+    total += Number(body[index]) * (useThree ? 3 : 1);
+    useThree = !useThree;
+  }
+
+  return String((10 - (total % 10)) % 10);
+}
+
+function numericHash(seed: string): number {
+  let hash = 0;
+
+  for (const character of seed) {
+    hash = (hash * 31 + character.charCodeAt(0)) % 2147483647;
+  }
+
+  return hash;
+}
+
+function numericSerialFromSeed(seed: string, length: number): string {
+  let serial = "";
+  let salt = 0;
+
+  while (serial.length < length) {
+    const digest = String(numericHash(`${seed}:${salt}`)).padStart(10, "0");
+    serial += digest;
+    salt += 1;
+  }
+
+  return serial.slice(0, length);
+}
+
+export function buildVicsBolNumber(input: {
+  companyPrefix: string;
+  uniqueSeed: string;
+}): string | null {
+  const companyPrefix = normalizeDigits(input.companyPrefix);
+
+  if (companyPrefix.length < 6 || companyPrefix.length > 10) {
+    return null;
+  }
+
+  const serialLength = 16 - companyPrefix.length;
+
+  if (serialLength <= 0) {
+    return null;
+  }
+
+  const body = `${companyPrefix}${numericSerialFromSeed(input.uniqueSeed, serialLength)}`;
+  return `${body}${gs1Modulo10CheckDigit(body)}`;
+}
+
 export function normalizeSearchText(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
