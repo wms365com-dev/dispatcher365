@@ -366,9 +366,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
           description="This follows the old AESON behavior: the selected packing slips are grouped under one bill number and printed on one BOL."
         >
           <form action={generateBillOfLadingAction} className="field-grid">
-            {selectedBatchIds.map((batchId) => (
-              <input key={batchId} name="batchIds" type="hidden" value={batchId} />
-            ))}
+            <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
             <label className="field">
               <span>Batch Selection</span>
               <input readOnly value={selectedBatchIds.join(", ")} />
