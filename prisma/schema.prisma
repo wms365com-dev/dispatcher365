@@ -140,6 +140,17 @@ model Customer {
   country         String?            @default("US")
   phone           String?
   email           String?
+  comments        String?
+  shipCode        String?
+  shipName        String?
+  shipAddress1    String?
+  shipAddress2    String?
+  shipCity        String?
+  shipState       String?
+  shipPostalCode  String?
+  shipCountry     String?            @default("US")
+  shipPhone       String?
+  shipEmail       String?
   freightTerms    String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt

@@ -50,11 +50,15 @@ export default async function CustomersPage() {
             </label>
             <label className="field">
               <span>Comments</span>
-              <input name="shipToCode" placeholder="Optional ship-to code" />
+              <input name="comments" placeholder="Optional receiving note or customer comment" />
             </label>
             <label className="field">
               <span>Country</span>
               <input name="country" placeholder="CA" defaultValue="US" />
+            </label>
+            <label className="field">
+              <span>Ship To Code</span>
+              <input name="shipToCode" placeholder="Optional ship-to code" />
             </label>
             <label className="field">
               <span>Ship To Name</span>

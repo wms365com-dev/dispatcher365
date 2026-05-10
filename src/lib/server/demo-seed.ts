@@ -50,7 +50,28 @@ export const demoCredentials = {
   password: "Dispatch123!"
 };
 
-const customerSeeds = [
+type CustomerSeed = {
+  customerCode: string;
+  name: string;
+  billingAddress1: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  phone: string;
+  freightTerms: "prepaid" | "collect" | "third-party";
+  comments?: string;
+  shipCode?: string;
+  shipName?: string;
+  shipAddress1?: string;
+  shipAddress2?: string;
+  shipCity?: string;
+  shipState?: string;
+  shipPostalCode?: string;
+  shipPhone?: string;
+  shipEmail?: string;
+};
+
+const customerSeeds: readonly CustomerSeed[] = [
   {
     customerCode: "BEAOUTNJ",
     name: "BEALL'S OUTLET c/o NRT",
@@ -59,6 +80,11 @@ const customerSeeds = [
     state: "NJ",
     postalCode: "07047",
     phone: "",
+    shipName: "BEALL'S OUTLET c/o NRT",
+    shipAddress1: "2820 16th Street, Building C",
+    shipCity: "North Bergen",
+    shipState: "NJ",
+    shipPostalCode: "07047",
     freightTerms: "prepaid"
   },
   {
@@ -69,6 +95,11 @@ const customerSeeds = [
     state: "NJ",
     postalCode: "07087",
     phone: "(201) 864-8576",
+    shipName: "UNION CITY HOME CENTER",
+    shipAddress1: "3801 Bergenline Ave",
+    shipCity: "Union City",
+    shipState: "NJ",
+    shipPostalCode: "07087",
     freightTerms: "prepaid"
   },
   {
@@ -79,6 +110,11 @@ const customerSeeds = [
     state: "NJ",
     postalCode: "07047",
     phone: "2013301900x3912",
+    shipName: "NRT BUILDING C",
+    shipAddress1: "2820 16th Street",
+    shipCity: "North Bergen",
+    shipState: "NJ",
+    shipPostalCode: "07047",
     freightTerms: "prepaid"
   },
   {
@@ -89,6 +125,11 @@ const customerSeeds = [
     state: "NJ",
     postalCode: "07047",
     phone: "",
+    shipName: "NATIONAL RETAIL TRANSPORTATION INC",
+    shipAddress1: "2820 16th Street, Building C",
+    shipCity: "North Bergen",
+    shipState: "NJ",
+    shipPostalCode: "07047",
     freightTerms: "prepaid"
   },
   {
@@ -99,9 +140,14 @@ const customerSeeds = [
     state: "CA",
     postalCode: "90023",
     phone: "",
+    shipName: "APACSALE GROUP / OZSALE PTY LTD",
+    shipAddress1: "1107 South Boyle Avenue",
+    shipCity: "Los Angeles",
+    shipState: "CA",
+    shipPostalCode: "90023",
     freightTerms: "third-party"
   }
-] as const;
+];
 
 const carrierSeeds = [
   {
@@ -416,28 +462,30 @@ export async function ensureDemoSeed() {
       update: {
         tenantId: tenant.id,
         customerId: customer.id,
-        code: customerSeed.customerCode,
-        name: customerSeed.name,
-        address1: customerSeed.billingAddress1,
-        city: customerSeed.city,
-        state: customerSeed.state,
-        postalCode: customerSeed.postalCode,
+        code: customerSeed.shipCode ?? customerSeed.customerCode,
+        name: customerSeed.shipName ?? customerSeed.name,
+        address1: customerSeed.shipAddress1 ?? customerSeed.billingAddress1,
+        address2: customerSeed.shipAddress2,
+        city: customerSeed.shipCity ?? customerSeed.city,
+        state: customerSeed.shipState ?? customerSeed.state,
+        postalCode: customerSeed.shipPostalCode ?? customerSeed.postalCode,
         country: "US",
-        phone: customerSeed.phone,
+        phone: customerSeed.shipPhone ?? customerSeed.phone,
         isDefault: true
       },
       create: {
         id: `${tenant.slug}-${customerSeed.customerCode}-default`,
         tenantId: tenant.id,
         customerId: customer.id,
-        code: customerSeed.customerCode,
-        name: customerSeed.name,
-        address1: customerSeed.billingAddress1,
-        city: customerSeed.city,
-        state: customerSeed.state,
-        postalCode: customerSeed.postalCode,
+        code: customerSeed.shipCode ?? customerSeed.customerCode,
+        name: customerSeed.shipName ?? customerSeed.name,
+        address1: customerSeed.shipAddress1 ?? customerSeed.billingAddress1,
+        address2: customerSeed.shipAddress2,
+        city: customerSeed.shipCity ?? customerSeed.city,
+        state: customerSeed.shipState ?? customerSeed.state,
+        postalCode: customerSeed.shipPostalCode ?? customerSeed.postalCode,
         country: "US",
-        phone: customerSeed.phone,
+        phone: customerSeed.shipPhone ?? customerSeed.phone,
         isDefault: true
       }
     });

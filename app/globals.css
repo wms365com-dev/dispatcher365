@@ -649,8 +649,8 @@ ul {
 
 .legacy-bol-preview {
   display: grid;
-  grid-template-columns: minmax(0, 820px) 280px;
-  gap: 22px;
+  grid-template-columns: 8.5in 300px;
+  gap: 28px;
   align-items: start;
 }
 
@@ -658,245 +658,81 @@ ul {
   display: block;
 }
 
-.legacy-bol-sheet {
+.legacy-bol-paper {
+  width: 8.5in;
+  overflow: hidden;
+  min-height: 11in;
+  padding: 0.5cm;
+  margin-left: auto;
+  margin-right: auto;
   background: #fff;
-  border: 1px solid #d3d3d3;
-  padding: 10px;
   color: #000;
-  font-size: 0.73rem;
+  box-shadow: 0 0 5px rgb(0 0 0 / 10%);
+  font: 10pt Arial, Helvetica, sans-serif;
 }
 
-.legacy-bol-sheet__heading {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  margin-bottom: 6px;
+.legacy-bol-paper *,
+.legacy-bol-paper *::before,
+.legacy-bol-paper *::after {
+  box-sizing: border-box;
 }
 
-.legacy-bol-sheet__heading strong {
-  justify-self: center;
-  font-size: 0.98rem;
-}
-
-.legacy-bol-sheet__hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
-}
-
-.legacy-bol-table {
+.legacy-bol-tabledata {
+  background: #fff;
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.72rem;
+  font-family: Tahoma, Arial, Helvetica, sans-serif;
+  font-size: 10pt;
+  border: thin solid #d3d3d3;
 }
 
-.legacy-bol-table th,
-.legacy-bol-table td {
-  border: 1px solid #cfcfcf;
-  padding: 4px 5px;
+.legacy-bol-tabledata tr {
+  min-height: 20px;
+  border: thin solid #d3d3d3;
+}
+
+.legacy-bol-tabledata td,
+.legacy-bol-tabledata th {
+  padding: 2px;
+  border: thin solid #d3d3d3;
   vertical-align: top;
 }
 
-.legacy-bol-table__section {
+.legacy-bol-noborder,
+.legacy-bol-noborder tr,
+.legacy-bol-noborder td {
+  border: none;
+}
+
+.legacy-bol-bg {
   background: #000;
+}
+
+.legacy-bol-bg span {
   color: #fff;
-  font-weight: 700;
-  text-align: center;
 }
 
-.legacy-bol-table__label {
-  width: 34%;
-  font-size: 0.7rem;
-  white-space: nowrap;
-}
-
-.legacy-bol-table--terms td,
-.legacy-bol-table--full td,
-.legacy-bol-table--full th {
-  font-size: 0.7rem;
-}
-
-.legacy-bol-table__terms {
-  white-space: normal;
-}
-
-.legacy-bol-table__total td {
-  font-weight: 700;
-  background: #efefef;
-}
-
-.legacy-bol-terms-text {
-  font-size: 0.6rem;
-  line-height: 1.3;
-}
-
-.legacy-bol-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 5px;
-}
-
-.legacy-bol-checkbox-row--compact {
-  gap: 6px;
-}
-
-.legacy-bol-checkbox {
+.legacy-bol-inline-box {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border: 1px solid #000;
-  font-size: 0.65rem;
-  line-height: 1;
-}
-
-.legacy-bol-master-bill {
-  display: grid;
-  grid-template-columns: 74px 1fr;
-  gap: 8px;
-  margin-top: 6px;
-  align-items: start;
-}
-
-.legacy-bol-master-bill__note {
-  font-size: 0.62rem;
-}
-
-.legacy-bol-commodity-note {
-  font-size: 0.56rem;
-  line-height: 1.2;
-  color: #333;
-}
-
-.legacy-bol-commodity-value {
-  margin-top: 4px;
-  font-size: 0.78rem;
   text-align: center;
+  line-height: 1;
+  font-size: 8pt;
 }
 
-.legacy-bol-sheet__settlement {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
-  gap: 12px;
-  padding: 10px 0;
-}
-
-.legacy-bol-sheet__note,
-.legacy-bol-sheet__liability {
-  color: #4a4a4a;
-  font-size: 0.66rem;
-  line-height: 1.45;
-}
-
-.legacy-bol-sheet__cod {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-  font-size: 0.75rem;
-}
-
-.legacy-bol-sheet__legal {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0;
-  border: 1px solid #cfcfcf;
-  border-top: 0;
-}
-
-.legacy-bol-sheet__legal-copy {
-  min-height: 76px;
-  padding: 6px;
-  border-right: 1px solid #cfcfcf;
-  font-size: 0.62rem;
-  line-height: 1.5;
-}
-
-.legacy-bol-sheet__legal-copy:last-child {
-  border-right: 0;
-}
-
-.legacy-bol-signatures {
-  display: grid;
-  grid-template-columns: 1.45fr 1.1fr 1.3fr;
-  gap: 0;
-  margin-top: 0;
-  border-left: 1px solid #cfcfcf;
-  border-right: 1px solid #cfcfcf;
-  border-bottom: 1px solid #cfcfcf;
-}
-
-.legacy-bol-signatures__block {
-  min-height: 150px;
-  padding: 8px;
-  border-right: 1px solid #cfcfcf;
-  display: grid;
-  gap: 8px;
-  align-content: start;
-  font-size: 0.68rem;
-}
-
-.legacy-bol-signatures__block:last-child {
-  border-right: 0;
-}
-
-.legacy-bol-signatures__block--wide p {
-  line-height: 1.65;
-}
-
-.legacy-bol-signatures__block--checks {
-  grid-template-columns: 1fr 1fr;
-  align-content: start;
-}
-
-.legacy-bol-check-stack {
-  display: grid;
-  gap: 10px;
-}
-
-.legacy-bol-check-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.legacy-bol-signatures__stack {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-}
-
-.legacy-bol-signatures__stack .legacy-bol-signatures__block {
-  min-height: 120px;
-  border-right: 0;
-  border-bottom: 1px solid #cfcfcf;
-}
-
-.legacy-bol-signatures__stack .legacy-bol-signatures__block:last-child {
-  border-bottom: 0;
-}
-
-.legacy-bol-signatures__line {
-  min-height: 42px;
-  display: flex;
-  align-items: end;
-  color: #8c8c8c;
-}
-
-.legacy-bol-signatures__driver-label {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 44px;
-  color: #b8b8b8;
-  font-size: 0.95rem;
+.legacy-bol-icon-box {
+  display: inline-block;
+  font-size: 10pt;
+  line-height: 1;
   font-weight: 700;
 }
 
-.legacy-bol-signatures__date-line {
-  display: flex;
-  justify-content: center;
-  font-size: 0.7rem;
+.legacy-bol-grey-cell {
+  background: #808080 !important;
 }
 
 .legacy-bol-actions {
@@ -1052,6 +888,10 @@ ul {
   .legacy-bol-preview {
     grid-template-columns: 1fr;
   }
+
+  .legacy-bol-paper {
+    width: min(100%, 8.5in);
+  }
 }
 
 @media (max-width: 1100px) {
@@ -1145,7 +985,7 @@ ul {
 
   .surface,
   .section-card,
-  .legacy-bol-sheet {
+  .legacy-bol-paper {
     border: 0;
     box-shadow: none;
   }
@@ -1166,19 +1006,18 @@ ul {
     display: block;
   }
 
-  .legacy-bol-sheet {
+  .legacy-bol-paper {
     width: 8.5in;
     min-height: 11in;
     margin: 0 auto;
-    padding: 0.22in;
+    padding: 0.5cm;
     border: 0;
-    font-size: 9.5px;
+    font: 10pt Arial, Helvetica, sans-serif;
   }
 
-  .legacy-bol-table th,
-  .legacy-bol-table td,
-  .legacy-bol-sheet__legal-copy,
-  .legacy-bol-signatures__block {
-    border-color: #bdbdbd;
+  .legacy-bol-paper,
+  .legacy-bol-paper * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

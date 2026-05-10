@@ -31,6 +31,7 @@ export const customerCreateSchema = z.object({
   country: optionalText.transform((value) => value?.toUpperCase() ?? "US"),
   phone: optionalText,
   email: optionalEmail,
+  comments: optionalText,
   freightTerms: z.enum(["prepaid", "collect", "third-party"]).default("prepaid"),
   shipToCode: optionalText,
   shipToName: optionalText,

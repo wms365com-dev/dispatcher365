@@ -1,4 +1,5 @@
 import { BolPreviewActions } from "@/components/bol-preview-actions";
+import { LegacyBolDocument } from "@/components/legacy-bol-document";
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
@@ -22,18 +23,6 @@ function formatDate(value?: Date | null) {
   return new Intl.DateTimeFormat("en-CA", {
     year: "numeric",
     month: "2-digit",
-    day: "2-digit"
-  }).format(value);
-}
-
-function formatDateLong(value?: Date | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
     day: "2-digit"
   }).format(value);
 }
@@ -71,34 +60,6 @@ function formatSlashDate(value?: Date | null) {
   return [month, day, year].filter(Boolean).join(" / ");
 }
 
-function formatCurrency(value?: number | null) {
-  if (typeof value !== "number") {
-    return "-";
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2
-  }).format(value);
-}
-
-function formatMeasure(value?: number | null, suffix?: string) {
-  if (typeof value !== "number") {
-    return "-";
-  }
-
-  const formatted = new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 2
-  }).format(value);
-
-  return suffix ? `${formatted} ${suffix}` : formatted;
-}
-
-function formatTemplateLabel(value: string) {
-  return value.replaceAll("_", " ");
-}
-
 function formatBolHeaderDate(value?: Date | null) {
   if (!value) {
     return "-";
@@ -115,6 +76,26 @@ function formatBolHeaderDate(value?: Date | null) {
   const year = parts.find((part) => part.type === "year")?.value;
 
   return [day, month, year].filter(Boolean).join(" / ");
+}
+
+function formatLegacyNumber(value?: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "-";
+  }
+
+  if (Number.isInteger(value)) {
+    return String(value);
+  }
+
+  return value.toFixed(2).replace(/\.00$/, "");
+}
+
+function formatLegacyMoney(value?: number | null) {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+    return "0.00";
+  }
+
+  return value.toFixed(2);
 }
 
 export default async function BolsPage({ searchParams }: BolsPageProps) {
@@ -149,14 +130,9 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const previewShipment = previewBill?.shipment;
   const previewCustomer = previewShipment?.customer;
   const previewCarrier = previewShipment?.carrier;
-  const previewThirdParty = previewCustomer?.locations.find((location) => location.isDefault) ?? previewCustomer?.locations[0];
+  const previewThirdParty =
+    previewCustomer?.locations.find((location) => location.isDefault) ?? previewCustomer?.locations[0];
   const previewIsLatestGenerated = Boolean(params?.generated && previewBill);
-  const shipToAddress = previewCustomer
-    ? formatAddress([
-        previewCustomer.billingAddress1,
-        previewCustomer.billingAddress2
-      ])
-    : "-";
   const shipFromAddress = formatAddress([
     context.tenant.warehouseAddress1,
     context.tenant.warehouseAddress2
@@ -166,28 +142,40 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     context.tenant.warehouseState,
     context.tenant.warehousePostalCode
   );
+  const shipToAddress = previewCustomer
+    ? formatAddress([previewCustomer.billingAddress1, previewCustomer.billingAddress2])
+    : "-";
   const shipToCityStateZip = formatCityStateZip(
     previewCustomer?.city,
     previewCustomer?.state,
     previewCustomer?.postalCode
   );
-  const thirdPartyAddress = previewThirdParty
-    ? formatAddress([previewThirdParty.address1, previewThirdParty.address2])
-    : "-";
-  const thirdPartyCityStateZip = formatCityStateZip(
-    previewThirdParty?.city,
-    previewThirdParty?.state,
-    previewThirdParty?.postalCode
-  );
-  const bolLineDescription = previewCustomer ? `${previewCustomer.customerCode} / ${previewCustomer.name}` : "Tenant freight shipment";
-  const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "Prepaid").toUpperCase();
+  const thirdPartyName = previewCustomer?.shipName ?? previewThirdParty?.name ?? "-";
+  const thirdPartyAddress =
+    previewCustomer?.shipAddress1 || previewCustomer?.shipAddress2
+      ? formatAddress([previewCustomer.shipAddress1, previewCustomer.shipAddress2])
+      : previewThirdParty
+        ? formatAddress([previewThirdParty.address1, previewThirdParty.address2])
+        : "-";
+  const thirdPartyCityStateZip =
+    previewCustomer?.shipCity || previewCustomer?.shipState || previewCustomer?.shipPostalCode
+      ? formatCityStateZip(
+          previewCustomer?.shipCity,
+          previewCustomer?.shipState,
+          previewCustomer?.shipPostalCode
+        )
+      : formatCityStateZip(
+          previewThirdParty?.city,
+          previewThirdParty?.state,
+          previewThirdParty?.postalCode
+        );
+  const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "prepaid").toUpperCase();
   const isCollect = freightTerms.includes("COLLECT");
-  const isPrepaid = !isCollect;
+  const isThirdParty = freightTerms.includes("THIRD");
+  const isPrepaid = !isCollect && !isThirdParty;
   const codAmount = previewShipment?.codAmount ?? 0;
-  const hasCod = codAmount > 0;
-  const orderReference = previewShipment?.customerPo ?? previewShipment?.salesOrder ?? previewShipment?.batchId ?? "-";
-  const orderCommodity = previewShipment?.department ?? "HOUSEWARE";
   const hasVicsPrefix = Boolean(context.tenant.gs1CompanyPrefix);
+  const currentDateLabel = formatBolHeaderDate(new Date());
 
   return (
     <>
@@ -240,338 +228,52 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         title={previewIsLatestGenerated ? "Generated BOL Preview" : "BOL Preview"}
         description={
           previewBill
-            ? "The generated bill now renders as an actual document preview so dispatch can review it before routing."
+            ? "The generated bill now renders through the legacy print structure so dispatch can review the same document before routing."
             : "Generate a BOL from the queue and the document preview will appear here."
         }
       >
         {previewBill && previewShipment && previewCustomer ? (
           <article className="legacy-bol-preview">
-            <div className="legacy-bol-sheet">
-              <div className="legacy-bol-sheet__heading">
-                <span>Date: {formatBolHeaderDate(previewShipment.shipDate ?? previewBill.createdAt)}</span>
-                <strong>BILL OF LADING</strong>
-              </div>
-
-              <div className="legacy-bol-sheet__hero">
-                <table className="legacy-bol-table">
-                  <tbody>
-                    <tr>
-                      <th className="legacy-bol-table__section" colSpan={2}>
-                        SHIP FROM
-                      </th>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Name:</td>
-                      <td>{context.tenant.name}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Address:</td>
-                      <td>{shipFromAddress}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">City/State/Zip:</td>
-                      <td>{shipFromCityStateZip}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">SID#:</td>
-                      <td>
-                        TEL: {context.tenant.warehousePhone ?? "-"} &nbsp;&nbsp; FOB: {context.tenant.warehouseFob ? "□" : "□"}
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <th className="legacy-bol-table__section" colSpan={2}>
-                        SHIP TO
-                      </th>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Name:</td>
-                      <td>{previewCustomer.name}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Address:</td>
-                      <td>{shipToAddress}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">City/State/Zip:</td>
-                      <td>{shipToCityStateZip}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">SID#:</td>
-                      <td>TEL: {previewCustomer.phone ?? "-"}</td>
-                    </tr>
-
-                    <tr>
-                      <th className="legacy-bol-table__section" colSpan={2}>
-                        THIRD PARTY FREIGHT CHARGES BILL TO
-                      </th>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Name:</td>
-                      <td>{previewThirdParty?.name ?? "-"}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Address:</td>
-                      <td>{thirdPartyAddress}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">City/State/Zip:</td>
-                      <td>{thirdPartyCityStateZip}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <table className="legacy-bol-table">
-                  <tbody>
-                    <tr>
-                      <td className="legacy-bol-table__label">Bill of Lading Number:</td>
-                      <td>{previewBill.bolNumber}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">AUTHORIZATION NUMBER</td>
-                      <td>{previewShipment.authorization ?? "-"}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">CARRIER NAME:</td>
-                      <td>{previewBill.carrierName ?? previewCarrier?.name ?? "-"}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">SCAC:</td>
-                      <td>{previewCarrier?.scac ?? previewShipment.scac ?? "-"}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Trailer Number:</td>
-                      <td>{previewBill.trailerNumber ?? "-"}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Seal Number(s):</td>
-                      <td>{previewBill.sealNumber ?? "-"}</td>
-                    </tr>
-                    <tr>
-                      <td className="legacy-bol-table__label">Customer Code</td>
-                      <td>{previewCustomer.customerCode}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <table className="legacy-bol-table legacy-bol-table--terms">
-                <tbody>
-                  <tr>
-                    <td className="legacy-bol-table__label">DELIVERY DATE:</td>
-                    <td>{formatSlashDate(previewShipment.deliveryDate)}</td>
-                    <td className="legacy-bol-table__label">SPECIAL INSTRUCTIONS</td>
-                    <td rowSpan={3}>{previewShipment.comments ?? "-"}</td>
-                  </tr>
-                  <tr>
-                    <td className="legacy-bol-table__label">APPROVED BY:</td>
-                    <td>{previewShipment.approvedBy ?? "-"}</td>
-                    <td className="legacy-bol-table__label">Freight Charge Terms:</td>
-                  </tr>
-                  <tr>
-                    <td className="legacy-bol-table__label">RECEIVING HOURS:</td>
-                    <td>{previewShipment.deliveryWindow ?? "-"}</td>
-                    <td className="legacy-bol-table__terms">
-                      <div className="legacy-bol-terms-text">
-                        Freight charges are prepaid unless marked otherwise
-                      </div>
-                      <div className="legacy-bol-checkbox-row">
-                        <span>Prepaid</span>
-                        <span className="legacy-bol-checkbox">{isPrepaid ? "X" : ""}</span>
-                        <span>Collect</span>
-                        <span className="legacy-bol-checkbox">{isCollect ? "X" : ""}</span>
-                        <span>3rd Party</span>
-                        <span className="legacy-bol-checkbox"></span>
-                      </div>
-                      <div className="legacy-bol-master-bill">
-                        <span className="legacy-bol-master-bill__note">(check box)</span>
-                        <span>Master Bill of Lading with attached underlying Bills of Lading</span>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <table className="legacy-bol-table legacy-bol-table--full">
-                <thead>
-                  <tr>
-                    <th className="legacy-bol-table__section" colSpan={8}>
-                      CARRIER INFORMATION
-                    </th>
-                  </tr>
-                  <tr>
-                    <th>CUSTOMER ORDER NO.</th>
-                    <th># PKGS</th>
-                    <th>WEIGHT</th>
-                    <th>PALLETS / SLIP</th>
-                    <th>HDS SALES ORDER NUMBER</th>
-                    <th>DEPT #</th>
-                    <th>BATCH ID</th>
-                    <th>CLASS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{orderReference}</td>
-                    <td>{previewShipment.cartons || previewShipment.units || 0}</td>
-                    <td>{formatMeasure(previewShipment.weightLb)}</td>
-                    <td>{previewShipment.pallets > 0 ? "Y" : "N"}</td>
-                    <td>{previewShipment.salesOrder ?? "-"}</td>
-                    <td>{previewShipment.department ?? "-"}</td>
-                    <td>{previewShipment.batchId}</td>
-                    <td>{previewShipment.freightClass ?? "-"}</td>
-                  </tr>
-                  <tr className="legacy-bol-table__total">
-                    <td>GRAND TOTAL</td>
-                    <td>{previewShipment.cartons || previewShipment.units || 0}</td>
-                    <td>{formatMeasure(previewShipment.weightLb)}</td>
-                    <td>{previewShipment.pallets}</td>
-                    <td>{previewShipment.salesOrder ?? "-"}</td>
-                    <td>{previewShipment.department ?? "-"}</td>
-                    <td>{previewShipment.batchId}</td>
-                    <td>{previewShipment.freightClass ?? "-"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <table className="legacy-bol-table legacy-bol-table--full">
-                <thead>
-                  <tr>
-                    <th className="legacy-bol-table__section" colSpan={8}>
-                      CUSTOMER ORDER INFORMATION
-                    </th>
-                  </tr>
-                  <tr>
-                    <th>HANDLING UNIT</th>
-                    <th>PACKAGE</th>
-                    <th>QTY</th>
-                    <th>TYPE</th>
-                    <th>QTY</th>
-                    <th>TYPE</th>
-                    <th>COMMODITY DESCRIPTION</th>
-                    <th>LTL ONLY</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{previewShipment.pallets > 0 ? previewShipment.pallets : previewShipment.cartons}</td>
-                    <td>{previewShipment.pallets > 0 ? "PLT" : "CTN"}</td>
-                    <td>{previewShipment.cartons}</td>
-                    <td>CTN</td>
-                    <td>{previewShipment.units}</td>
-                    <td>PCS</td>
-                    <td>
-                      <div className="legacy-bol-commodity-note">
-                        Commodities requiring special or additional care or attention in handling or stowing must be so marked
-                        and packaged as to ensure safe transportation with ordinary care.
-                      </div>
-                      <div className="legacy-bol-commodity-value">{orderCommodity}</div>
-                    </td>
-                    <td>
-                      <div>NMFC # {previewShipment.department ?? "049390-06"}</div>
-                      <div>CLASS {previewShipment.freightClass ?? "-"}</div>
-                    </td>
-                  </tr>
-                  <tr className="legacy-bol-table__total">
-                    <td colSpan={6}>GRAND TOTAL</td>
-                    <td>{bolLineDescription}</td>
-                    <td>{previewShipment.freightClass ?? "-"}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <div className="legacy-bol-sheet__settlement">
-                <div className="legacy-bol-sheet__note">
-                  Where the rate is dependent on value, shippers are required to state specifically in writing the agreed or
-                  declared value of the property as follows. The agreed or declared value of the property is specifically
-                  stated by the shipper to be not exceeding __________ per __________.
-                </div>
-                <div className="legacy-bol-sheet__cod">
-                  <div>
-                    COD Amount $ <strong>{formatCurrency(codAmount).replace("$", "").trim()}</strong>
-                  </div>
-                  <div className="legacy-bol-checkbox-row legacy-bol-checkbox-row--compact">
-                    <span>Fee Terms:</span>
-                    <span>Collect:</span>
-                    <span className="legacy-bol-checkbox">{hasCod ? "X" : ""}</span>
-                    <span>Prepaid:</span>
-                    <span className="legacy-bol-checkbox"></span>
-                  </div>
-                  <div className="legacy-bol-checkbox-row legacy-bol-checkbox-row--compact">
-                    <span>Customer check acceptable:</span>
-                    <span className="legacy-bol-checkbox"></span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="legacy-bol-sheet__liability">
-                NOTE: Liability Limitation for loss or damage in this shipment may be applicable. See 49 U.S.C. - 14706(c)(1)(A)
-                and (B).
-              </div>
-
-              <div className="legacy-bol-sheet__legal">
-                <div className="legacy-bol-sheet__legal-copy">
-                  RECEIVED, subject to individually determined rates or contracts that have been agreed upon in writing between
-                  the carrier and shipper, otherwise to the rates, classifications and rules that have been established by the
-                  carrier and are available to the shipper, on request, and to all applicable state and federal regulations.
-                </div>
-                <div className="legacy-bol-sheet__legal-copy">
-                  The carrier shall not make delivery of this shipment without payment of freight and all other lawful charges.
-                </div>
-              </div>
-
-              <div className="legacy-bol-signatures">
-                <div className="legacy-bol-signatures__block legacy-bol-signatures__block--wide">
-                  <strong>SHIPPER SIGNATURE / SHIP DATE</strong>
-                  <p>
-                    This is to certify that the above named materials are properly classified, packaged, marked and labeled, and
-                    are in proper condition for transportation according to the applicable regulations of the DOT.
-                  </p>
-                </div>
-                <div className="legacy-bol-signatures__block legacy-bol-signatures__block--checks">
-                  <div className="legacy-bol-check-stack">
-                    <strong>Trailer Loaded</strong>
-                    <div className="legacy-bol-check-option">
-                      <span className="legacy-bol-checkbox"></span>
-                      <span>By Shipper</span>
-                    </div>
-                    <div className="legacy-bol-check-option">
-                      <span className="legacy-bol-checkbox"></span>
-                      <span>By Driver</span>
-                    </div>
-                  </div>
-                  <div className="legacy-bol-check-stack">
-                    <strong>Freight Counted</strong>
-                    <div className="legacy-bol-check-option">
-                      <span className="legacy-bol-checkbox"></span>
-                      <span>By Shipper</span>
-                    </div>
-                    <div className="legacy-bol-check-option">
-                      <span className="legacy-bol-checkbox"></span>
-                      <span>By Driver/pallets said to contain</span>
-                    </div>
-                    <div className="legacy-bol-check-option">
-                      <span className="legacy-bol-checkbox"></span>
-                      <span>By Driver/Pieces</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="legacy-bol-signatures__stack">
-                  <div className="legacy-bol-signatures__block">
-                    <strong>CARRIER SIGNATURE / PICKUP DATE</strong>
-                    <div className="legacy-bol-signatures__driver-label">DRIVER</div>
-                    <div className="legacy-bol-signatures__line">________________________________</div>
-                    <div className="legacy-bol-signatures__date-line">____ / ____ / ________</div>
-                  </div>
-                  <div className="legacy-bol-signatures__block">
-                    <strong>RECEIVER SIGNATURE / DELIVERY DATE</strong>
-                    <div className="legacy-bol-signatures__driver-label">RECEIVER</div>
-                    <div className="legacy-bol-signatures__line">________________________________</div>
-                    <div className="legacy-bol-signatures__date-line">____ / ____ / ________</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <LegacyBolDocument
+              approvedBy={previewShipment.approvedBy ?? ""}
+              authorization={previewShipment.authorization ?? ""}
+              batchId={previewShipment.batchId}
+              bolNumber={previewBill.bolNumber}
+              carrierName={previewBill.carrierName ?? previewCarrier?.name ?? ""}
+              cartons={formatLegacyNumber(previewShipment.cartons || previewShipment.units || 0)}
+              checkOrCash={previewShipment.checkOrCash ?? ""}
+              codInlineAmount={codAmount > 0 ? `$${formatLegacyMoney(codAmount)}` : "-"}
+              codLargeAmount={formatLegacyMoney(codAmount)}
+              commodity="HOUSEWARE"
+              currentDateLabel={currentDateLabel}
+              customerCode={previewCustomer.customerCode}
+              customerComments={previewCustomer.comments ?? previewShipment.comments ?? ""}
+              customerPo={previewShipment.customerPo ?? "-"}
+              deliveryDate={formatSlashDate(previewShipment.deliveryDate)}
+              department={previewShipment.department ?? ""}
+              freightCollect={isCollect}
+              freightPrepaid={isPrepaid}
+              freightThirdParty={isThirdParty}
+              nmfcCode="049390-06"
+              pallets={formatLegacyNumber(previewShipment.pallets)}
+              receivingHours={previewShipment.deliveryWindow === " TO " ? "" : previewShipment.deliveryWindow ?? ""}
+              salesOrder={previewShipment.salesOrder ?? ""}
+              scac={previewCarrier?.scac ?? previewShipment.scac ?? ""}
+              sealNumber={previewBill.sealNumber ?? ""}
+              shipFromAddress={shipFromAddress}
+              shipFromCityStateZip={shipFromCityStateZip}
+              shipFromPhone={context.tenant.warehousePhone ?? ""}
+              shipToAddress={shipToAddress}
+              shipToCityStateZip={shipToCityStateZip}
+              shipToName={previewCustomer.name}
+              shipToPhone={previewCustomer.phone ?? ""}
+              tenantName={context.tenant.name}
+              thirdPartyAddress={thirdPartyAddress}
+              thirdPartyCityStateZip={thirdPartyCityStateZip}
+              thirdPartyName={thirdPartyName}
+              trailerNumber={previewBill.trailerNumber ?? ""}
+              weight={formatLegacyNumber(previewShipment.weightLb)}
+            />
 
             <BolPreviewActions />
           </article>

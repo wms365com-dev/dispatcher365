@@ -593,6 +593,17 @@ export async function createCustomer(input: unknown) {
       country: data.country,
       phone: data.phone,
       email: data.email,
+      comments: data.comments,
+      shipCode: data.shipToCode ?? data.customerCode,
+      shipName: data.shipToName ?? data.name,
+      shipAddress1: data.shipToAddress1 ?? data.billingAddress1,
+      shipAddress2: data.shipToAddress2 ?? data.billingAddress2,
+      shipCity: data.shipToCity ?? data.city,
+      shipState: data.shipToState ?? data.state,
+      shipPostalCode: data.shipToPostalCode ?? data.postalCode,
+      shipCountry: data.shipToCountry ?? data.country,
+      shipPhone: data.shipToPhone ?? data.phone,
+      shipEmail: data.shipToEmail ?? data.email,
       freightTerms: data.freightTerms
     }
   });
