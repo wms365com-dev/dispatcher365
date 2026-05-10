@@ -132,6 +132,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const previewShipment = previewBill?.shipment;
   const previewCustomer = previewShipment?.customer;
   const previewCarrier = previewShipment?.carrier;
+  const previewThirdParty = previewCustomer?.locations.find((location) => location.isDefault) ?? previewCustomer?.locations[0];
   const previewIsLatestGenerated = Boolean(params?.generated && previewBill);
   const shipToAddress = previewCustomer
     ? formatAddress([
@@ -154,6 +155,15 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     previewCustomer?.state,
     previewCustomer?.postalCode,
     previewCustomer?.country
+  );
+  const thirdPartyAddress = previewThirdParty
+    ? formatAddress([previewThirdParty.address1, previewThirdParty.address2])
+    : "-";
+  const thirdPartyCityStateZip = formatCityStateZip(
+    previewThirdParty?.city,
+    previewThirdParty?.state,
+    previewThirdParty?.postalCode,
+    previewThirdParty?.country
   );
   const bolLineDescription = previewCustomer ? `${previewCustomer.customerCode} / ${previewCustomer.name}` : "Tenant freight shipment";
   const freightTerms = (previewBill?.freightTerms ?? previewCustomer?.freightTerms ?? "Prepaid").toUpperCase();
@@ -238,7 +248,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">Name:</td>
-                      <td>{context.tenant.warehouseName ?? context.tenant.name}</td>
+                      <td>{context.tenant.name}</td>
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">Address:</td>
@@ -292,15 +302,15 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">Name:</td>
-                      <td>-</td>
+                      <td>{previewThirdParty?.name ?? "-"}</td>
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">Address:</td>
-                      <td>-</td>
+                      <td>{thirdPartyAddress}</td>
                     </tr>
                     <tr>
                       <td className="legacy-bol-table__label">City/State/Zip:</td>
-                      <td>-</td>
+                      <td>{thirdPartyCityStateZip}</td>
                     </tr>
                   </tbody>
                 </table>

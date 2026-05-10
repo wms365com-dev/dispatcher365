@@ -366,7 +366,13 @@ export async function getBolsData() {
       include: {
         shipment: {
           include: {
-            customer: true,
+            customer: {
+              include: {
+                locations: {
+                  orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }]
+                }
+              }
+            },
             carrier: true
           }
         }
