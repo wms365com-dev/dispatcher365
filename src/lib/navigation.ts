@@ -3,6 +3,7 @@ export interface DispatchNavigationItem {
   label: string;
   shortLabel: string;
   description: string;
+  adminOnly?: boolean;
   icon:
     | "home"
     | "briefcase"
@@ -132,6 +133,14 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         shortLabel: "UM",
         description: "User roles, approvals, and tenant membership.",
         icon: "customer"
+      },
+      {
+        href: "/dispatch/issues",
+        label: "Issue Inbox",
+        shortLabel: "II",
+        description: "Admin-only bug reports and workflow issues stored in the database.",
+        icon: "file",
+        adminOnly: true
       },
       {
         href: "/dispatch/companies",

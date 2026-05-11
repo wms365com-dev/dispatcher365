@@ -12,6 +12,7 @@ interface BolsPageProps {
     error?: string;
     batchIds?: string | string[];
     generated?: string;
+    emailStatus?: string;
   }>;
 }
 
@@ -124,7 +125,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const selectedBatchIds = normalizeSearchBatchIds(params?.batchIds);
   const selectedBatchSet = new Set(selectedBatchIds);
-  const { context, shipments, readyShipments, groupedBills } = await getBolsData();
+  const { context, shipments, readyShipments, groupedBills, emailConfigured } = await getBolsData();
 
   const selectedShipments = shipments
     .filter((shipment) => selectedBatchSet.has(shipment.batchId))
@@ -239,6 +240,11 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     pallets: formatLegacyNumber(shipment.pallets)
   }));
   const hasVicsPrefix = Boolean(context.tenant.gs1CompanyPrefix);
+  const defaultEmail =
+    previewCustomer?.shipEmail ??
+    previewCustomer?.email ??
+    previewCarrier?.email ??
+    context.user.email;
 
   return (
     <>
@@ -256,6 +262,30 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         >
           <p className="helper-text">
             BOL <strong>{params.generated}</strong> now covers <strong>{selectedBatchIds.join(", ") || "-"}</strong>.
+          </p>
+        </SectionCard>
+      ) : null}
+
+      {params?.emailStatus === "sent" ? (
+        <SectionCard
+          className="print-hidden"
+          title="BOL Email Sent"
+          description="The grouped bill of lading was queued through the outbound email service."
+        >
+          <p className="helper-text">
+            BOL <strong>{params.generated}</strong> was sent using the current tenant email configuration.
+          </p>
+        </SectionCard>
+      ) : null}
+
+      {params?.emailStatus === "failed" ? (
+        <SectionCard
+          className="print-hidden"
+          title="BOL Email Failed"
+          description="The grouped bill of lading could not be emailed."
+        >
+          <p className="helper-text">
+            Check the Railway SMTP settings or review the outbound email log before retrying.
           </p>
         </SectionCard>
       ) : null}
@@ -438,7 +468,12 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
               trailerNumber=""
             />
 
-            <BolPreviewActions />
+            <BolPreviewActions
+              batchIds={previewShipments.map((shipment) => shipment.batchId)}
+              bolNumber={previewGroup.bolNumber}
+              defaultEmail={defaultEmail}
+              emailConfigured={emailConfigured}
+            />
           </article>
         ) : (
           <p className="helper-text">

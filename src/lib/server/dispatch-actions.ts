@@ -8,6 +8,7 @@ import {
   createCompany,
   createCustomer,
   createDriver,
+  createIssueReport,
   createProduct,
   createRouteRun,
   createSalesRep,
@@ -16,7 +17,10 @@ import {
   generateBillOfLading,
   publishRouteRun,
   queueLabelJob,
-  recordDeliveryEvent
+  recordDeliveryEvent,
+  sendBolEmail,
+  sendRouteManifestEmail,
+  updateIssueReport
 } from "@/lib/server/dispatch-service";
 
 function toFormObject(formData: FormData) {
@@ -148,4 +152,39 @@ export async function createCompanyAction(formData: FormData) {
   await createCompany(toFormObject(formData));
   revalidatePath("/dispatch/companies");
   redirect("/dispatch/companies");
+}
+
+export async function createIssueReportAction(formData: FormData) {
+  await createIssueReport(toFormObject(formData));
+  revalidatePath("/dispatch/report-issue");
+  revalidatePath("/dispatch/issues");
+  redirect("/dispatch/report-issue?submitted=1");
+}
+
+export async function updateIssueReportAction(formData: FormData) {
+  await updateIssueReport(toFormObject(formData));
+  revalidatePath("/dispatch/issues");
+  redirect("/dispatch/issues?updated=1");
+}
+
+export async function sendBolEmailAction(formData: FormData) {
+  const payload = toFormObject(formData);
+  const emailLog = await sendBolEmail(payload);
+  revalidatePath("/dispatch/bols");
+
+  const bolNumber = encodeURIComponent(String(payload.bolNumber ?? ""));
+  const batchIds = encodeURIComponent(String(payload.batchIds ?? ""));
+  const emailStatus = encodeURIComponent(emailLog?.status?.toLowerCase() ?? "failed");
+  redirect(`/dispatch/bols?generated=${bolNumber}&batchIds=${batchIds}&emailStatus=${emailStatus}`);
+}
+
+export async function sendRouteManifestEmailAction(formData: FormData) {
+  const payload = toFormObject(formData);
+  const emailLog = await sendRouteManifestEmail(payload);
+
+  const routeRunId = String(payload.routeRunId ?? "");
+  revalidatePath("/dispatch/routes");
+  revalidatePath(`/dispatch/routes/${routeRunId}/manifest`);
+  const emailStatus = encodeURIComponent(emailLog?.status?.toLowerCase() ?? "failed");
+  redirect(`/dispatch/routes/${routeRunId}/manifest?emailStatus=${emailStatus}`);
 }

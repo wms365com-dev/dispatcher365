@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
@@ -20,7 +22,7 @@ function formatDate(value: Date) {
 
 export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   const params = searchParams ? await searchParams : undefined;
-  const { carriers, drivers, routeCandidates, routes, routeIssue } = await getRoutesData(
+  const { carriers, drivers, routeCandidates, routes, routeIssue, mobileAlerts, emailConfigured } = await getRoutesData(
     params?.routeIssue
   );
 
@@ -35,11 +37,17 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   }));
 
   const routeRows = routes.map((route) => ({
+    manifest: (
+      <Link className="table-link" href={`/dispatch/routes/${route.id}/manifest`}>
+        View manifest
+      </Link>
+    ),
     date: formatDate(route.routeDate),
     routeName: route.routeName,
     carrier: route.carrier?.carrierCode ?? "Unassigned",
     driver: route.driver?.fullName ?? "Unassigned",
     stops: String(route.stops.length),
+    alerts: String(mobileAlerts.filter((alert) => alert.routeRunId === route.id).length),
     stopStatusSummary:
       route.stops.length === 0
         ? "No stops"
@@ -74,6 +82,17 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
         >
           <p className="helper-text">
             No eligible batches were found for that route request. Create the BOL first, then assign the batch to a route.
+          </p>
+        </SectionCard>
+      ) : null}
+
+      {!emailConfigured ? (
+        <SectionCard
+          title="Email Setup Notice"
+          description="Truck run email is wired into the workflow now, but SMTP needs to be configured in Railway before carriers can receive manifests."
+        >
+          <p className="helper-text">
+            Add <strong>SMTP_HOST</strong>, <strong>SMTP_PORT</strong>, <strong>SMTP_FROM</strong>, and credentials in Railway to enable Email to Carrier.
           </p>
         </SectionCard>
       ) : null}
@@ -158,11 +177,13 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
       >
         <SimpleTable
           columns={[
+            { key: "manifest", label: "Manifest" },
             { key: "date", label: "Date" },
             { key: "routeName", label: "Route" },
           { key: "carrier", label: "Carrier" },
           { key: "driver", label: "Driver" },
           { key: "stops", label: "Stops" },
+          { key: "alerts", label: "Alerts" },
           { key: "stopStatusSummary", label: "Stop Progress" },
           { key: "status", label: "Status" },
           { key: "mobile", label: "Mobile Sync" },
@@ -175,7 +196,7 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
 
       <SectionCard
         title="Route Stop Preview"
-        description="Each run keeps ordered stops so the future mobile app and printable route sheet both use the same source data."
+        description="Each run keeps ordered stops so the future mobile app and printable truck run manifest both use the same source data."
       >
         <div className="stack-grid">
           {routes.map((route) => (

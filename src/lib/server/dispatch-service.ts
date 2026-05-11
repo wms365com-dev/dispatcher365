@@ -6,7 +6,10 @@ import {
   customerCreateSchema,
   deliveryEventCreateSchema,
   driverCreateSchema,
+  issueReportCreateSchema,
+  issueReportUpdateSchema,
   labelJobCreateSchema,
+  outboundEmailSchema,
   productCreateSchema,
   routeCreateSchema,
   routePublishSchema,
@@ -26,6 +29,7 @@ import {
 
 import { requireTenantSession } from "./auth";
 import { ensureDemoSeed } from "./demo-seed";
+import { emailTransportConfigured, sendLoggedEmail } from "./email";
 import { createPasswordHash } from "./password";
 
 function parseDateValue(value?: string) {
@@ -47,6 +51,73 @@ function trimOrUndefined(value?: string | null) {
 
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
+}
+
+function isAdminRole(role: string) {
+  return role === "PLATFORM_ADMIN" || role === "TENANT_ADMIN";
+}
+
+function getAppBaseUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "https://dispatcher365-production.up.railway.app";
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function buildBolEmailHtml(input: {
+  tenantName: string;
+  bolNumber: string;
+  batchIds: string[];
+  customerName: string;
+  carrierName?: string | null;
+}) {
+  const previewUrl = `${getAppBaseUrl()}/dispatch/bols?generated=${encodeURIComponent(input.bolNumber)}&batchIds=${encodeURIComponent(input.batchIds.join(","))}`;
+
+  return `
+    <div style="font-family: Arial, Helvetica, sans-serif; color: #243746; line-height: 1.5;">
+      <h2 style="margin-bottom: 8px;">${escapeHtml(input.tenantName)} Bill of Lading</h2>
+      <p style="margin: 0 0 12px;">BOL <strong>${escapeHtml(input.bolNumber)}</strong> was generated for ${escapeHtml(input.customerName)}.</p>
+      <ul style="margin: 0 0 14px; padding-left: 20px;">
+        <li><strong>Batch IDs:</strong> ${escapeHtml(input.batchIds.join(", "))}</li>
+        <li><strong>Carrier:</strong> ${escapeHtml(input.carrierName ?? "Unassigned")}</li>
+      </ul>
+      <p style="margin: 0 0 14px;">Open the live dispatch preview here:</p>
+      <p style="margin: 0;"><a href="${previewUrl}">${previewUrl}</a></p>
+    </div>
+  `;
+}
+
+function buildRouteManifestEmailHtml(input: {
+  tenantName: string;
+  routeName: string;
+  routeDateLabel: string;
+  carrierName?: string | null;
+  driverName?: string | null;
+  stopCount: number;
+  batchIds: string[];
+  manifestUrl: string;
+}) {
+  return `
+    <div style="font-family: Arial, Helvetica, sans-serif; color: #243746; line-height: 1.5;">
+      <h2 style="margin-bottom: 8px;">${escapeHtml(input.tenantName)} Truck Run Manifest</h2>
+      <p style="margin: 0 0 12px;">Route <strong>${escapeHtml(input.routeName)}</strong> is ready for dispatch.</p>
+      <ul style="margin: 0 0 14px; padding-left: 20px;">
+        <li><strong>Run date:</strong> ${escapeHtml(input.routeDateLabel)}</li>
+        <li><strong>Carrier:</strong> ${escapeHtml(input.carrierName ?? "Unassigned")}</li>
+        <li><strong>Driver:</strong> ${escapeHtml(input.driverName ?? "Unassigned")}</li>
+        <li><strong>Stops:</strong> ${String(input.stopCount)}</li>
+        <li><strong>Batches:</strong> ${escapeHtml(input.batchIds.join(", "))}</li>
+      </ul>
+      <p style="margin: 0 0 14px;">Open the printable manifest here:</p>
+      <p style="margin: 0;"><a href="${input.manifestUrl}">${input.manifestUrl}</a></p>
+    </div>
+  `;
 }
 
 const terminalRouteStopStatuses = new Set([
@@ -451,7 +522,8 @@ export async function getBolsData() {
     context: { tenant, user },
     shipments,
     readyShipments: shipments.filter((shipment) => shipment.status === "READY_FOR_BOL"),
-    groupedBills
+    groupedBills,
+    emailConfigured: emailTransportConfigured()
   };
 }
 
@@ -534,10 +606,28 @@ export async function getCompaniesData() {
   };
 }
 
+export async function getIssueReportsData() {
+  const { tenantId, tenant, user, role } = await getTenantScope();
+
+  const reports = await prisma.issueReport.findMany({
+    where: isAdminRole(role) ? (role === "PLATFORM_ADMIN" ? undefined : { tenantId }) : { tenantId, userId: user.id },
+    include: {
+      tenant: true,
+      user: true
+    },
+    orderBy: [{ createdAt: "desc" }]
+  });
+
+  return {
+    context: { tenant, user, role },
+    reports
+  };
+}
+
 export async function getRoutesData(routeIssue?: string) {
   const { tenantId, tenant, user } = await getTenantScope();
 
-  const [carriers, drivers, routeCandidates, routes] = await Promise.all([
+  const [carriers, drivers, routeCandidates, routes, mobileAlerts] = await Promise.all([
     prisma.carrier.findMany({
       where: { tenantId },
       orderBy: [{ name: "asc" }]
@@ -575,6 +665,10 @@ export async function getRoutesData(routeIssue?: string) {
         }
       },
       orderBy: [{ routeDate: "desc" }, { createdAt: "desc" }]
+    }),
+    prisma.mobileAlert.findMany({
+      where: { tenantId },
+      orderBy: [{ createdAt: "desc" }]
     })
   ]);
 
@@ -584,7 +678,58 @@ export async function getRoutesData(routeIssue?: string) {
     drivers,
     routeCandidates,
     routes,
+    mobileAlerts,
+    emailConfigured: emailTransportConfigured(),
     routeIssue
+  };
+}
+
+export async function getRouteManifestData(routeRunId: string) {
+  const { tenantId, tenant, user } = await getTenantScope();
+
+  const routeRun = await prisma.routeRun.findFirst({
+    where: {
+      id: routeRunId,
+      tenantId
+    },
+    include: {
+      carrier: true,
+      driver: true,
+      mobileAlerts: {
+        orderBy: [{ createdAt: "desc" }]
+      },
+      stops: {
+        orderBy: [{ stopNumber: "asc" }],
+        include: {
+          shipment: {
+            include: {
+              customer: true,
+              carrier: true,
+              bol: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!routeRun) {
+    return null;
+  }
+
+  const totalPallets = routeRun.stops.reduce((sum, stop) => sum + stop.shipment.pallets, 0);
+  const totalCartons = routeRun.stops.reduce((sum, stop) => sum + stop.shipment.cartons, 0);
+  const totalStops = routeRun.stops.length;
+  const totalTrucks = routeRun.truckCount;
+
+  return {
+    context: { tenant, user },
+    routeRun,
+    totalPallets,
+    totalCartons,
+    totalStops,
+    totalTrucks,
+    emailConfigured: emailTransportConfigured()
   };
 }
 
@@ -1047,7 +1192,7 @@ export async function createRouteRun(input: unknown) {
 
 export async function publishRouteRun(input: unknown) {
   const data = routePublishSchema.parse(input);
-  const { tenantId } = await getTenantScope();
+  const { tenantId, tenant, user } = await getTenantScope();
 
   const route = await prisma.routeRun.findFirst({
     where: {
@@ -1055,7 +1200,12 @@ export async function publishRouteRun(input: unknown) {
       tenantId
     },
     include: {
-      stops: true
+      driver: true,
+      stops: {
+        include: {
+          shipment: true
+        }
+      }
     }
   });
 
@@ -1094,6 +1244,25 @@ export async function publishRouteRun(input: unknown) {
     }
   });
 
+  if (route.driverId) {
+    await prisma.mobileAlert.create({
+      data: {
+        tenantId,
+        routeRunId: route.id,
+        driverId: route.driverId,
+        title: `${tenant.name} route assigned`,
+        body: `${route.routeName} has ${route.stops.length} stop${route.stops.length === 1 ? "" : "s"} ready for driver review.`,
+        payloadJson: JSON.stringify({
+          routeRunId: route.id,
+          routeName: route.routeName,
+          batchIds: route.stops.map((stop) => stop.shipment.batchId),
+          publishedBy: user.email
+        }),
+        status: "PENDING"
+      }
+    });
+  }
+
   return updatedRoute;
 }
 
@@ -1122,6 +1291,155 @@ export async function queueLabelJob(input: unknown) {
       templateVariant: data.templateVariant,
       quantity: data.quantity
     }
+  });
+}
+
+export async function createIssueReport(input: unknown) {
+  const data = issueReportCreateSchema.parse(input);
+  const { tenantId, user } = await getTenantScope();
+
+  return prisma.issueReport.create({
+    data: {
+      tenantId,
+      userId: user.id,
+      pagePath: data.pagePath,
+      title: data.title,
+      details: data.details
+    }
+  });
+}
+
+export async function updateIssueReport(input: unknown) {
+  const data = issueReportUpdateSchema.parse(input);
+  const { tenantId, role } = await getTenantScope();
+
+  if (!isAdminRole(role)) {
+    return null;
+  }
+
+  return prisma.issueReport.updateMany({
+    where: {
+      id: data.issueReportId,
+      tenantId: role === "PLATFORM_ADMIN" ? undefined : tenantId
+    },
+    data: {
+      status: data.status,
+      adminNotes: data.adminNotes
+    }
+  });
+}
+
+export async function sendBolEmail(input: unknown) {
+  const data = outboundEmailSchema.parse(input);
+  const { tenantId, tenant, user } = await getTenantScope();
+
+  if (!data.bolNumber) {
+    return null;
+  }
+
+  const bills = await prisma.billOfLading.findMany({
+    where: {
+      tenantId,
+      bolNumber: data.bolNumber
+    },
+    include: {
+      shipment: {
+        include: {
+          customer: true,
+          carrier: true
+        }
+      }
+    },
+    orderBy: [{ shipment: { batchId: "asc" } }]
+  });
+
+  if (!bills.length) {
+    return null;
+  }
+
+  const shipments = bills.map((bill) => bill.shipment);
+  const primaryShipment = shipments[0];
+  const subject = `${tenant.name} BOL ${data.bolNumber}`;
+  const htmlBody = buildBolEmailHtml({
+    tenantName: tenant.name,
+    bolNumber: data.bolNumber,
+    batchIds: shipments.map((shipment) => shipment.batchId),
+    customerName: primaryShipment.customer.name,
+    carrierName: primaryShipment.carrier?.name ?? bills[0]?.carrierName
+  });
+
+  const emailLog = await sendLoggedEmail({
+    tenantId,
+    userId: user.id,
+    toEmail: data.toEmail,
+    subject,
+    htmlBody
+  });
+
+  if (emailLog.status === "SENT") {
+    await prisma.billOfLading.updateMany({
+      where: {
+        tenantId,
+        bolNumber: data.bolNumber
+      },
+      data: {
+        emailedAt: emailLog.sentAt ?? new Date()
+      }
+    });
+  }
+
+  return emailLog;
+}
+
+export async function sendRouteManifestEmail(input: unknown) {
+  const data = outboundEmailSchema.parse(input);
+  const { tenantId, tenant, user } = await getTenantScope();
+
+  if (!data.routeRunId) {
+    return null;
+  }
+
+  const routeRun = await prisma.routeRun.findFirst({
+    where: {
+      id: data.routeRunId,
+      tenantId
+    },
+    include: {
+      carrier: true,
+      driver: true,
+      stops: {
+        orderBy: [{ stopNumber: "asc" }],
+        include: {
+          shipment: true
+        }
+      }
+    }
+  });
+
+  if (!routeRun) {
+    return null;
+  }
+
+  const manifestUrl = `${getAppBaseUrl()}/dispatch/routes/${routeRun.id}/manifest`;
+  const subject = `${tenant.name} truck run ${routeRun.routeName}`;
+  const htmlBody = buildRouteManifestEmailHtml({
+    tenantName: tenant.name,
+    routeName: routeRun.routeName,
+    routeDateLabel: routeRun.routeDate.toISOString().slice(0, 10),
+    carrierName: routeRun.carrier?.name,
+    driverName: routeRun.driver?.fullName,
+    stopCount: routeRun.stops.length,
+    batchIds: routeRun.stops.map((stop) => stop.shipment.batchId),
+    manifestUrl
+  });
+
+  return sendLoggedEmail({
+    tenantId,
+    userId: user.id,
+    routeRunId: routeRun.id,
+    toEmail: data.toEmail,
+    subject,
+    htmlBody
   });
 }
 

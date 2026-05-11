@@ -37,6 +37,7 @@ export default async function DispatchLayout({ children }: DispatchLayoutProps) 
       tenantName={tenant.name}
       tenantSlug={tenant.slug}
       userEmail={user.email}
+      roleKey={role}
       roleLabel={roleLabel}
       topbarActions={topbarActions}
     >

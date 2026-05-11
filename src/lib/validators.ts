@@ -201,3 +201,21 @@ export const labelJobCreateSchema = z.object({
   templateVariant: z.enum(["SIMPLE", "ITEM", "CASE"]),
   quantity: z.coerce.number().int().positive().default(1)
 });
+
+export const issueReportCreateSchema = z.object({
+  pagePath: optionalText,
+  title: z.string().trim().min(4),
+  details: z.string().trim().min(10)
+});
+
+export const issueReportUpdateSchema = z.object({
+  issueReportId: z.string().trim().min(1),
+  status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED"]),
+  adminNotes: optionalText
+});
+
+export const outboundEmailSchema = z.object({
+  toEmail: z.string().trim().email(),
+  bolNumber: optionalText,
+  routeRunId: optionalText
+});

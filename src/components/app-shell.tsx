@@ -12,6 +12,7 @@ interface AppShellProps {
   tenantName: string;
   tenantSlug: string;
   userEmail: string;
+  roleKey: string;
   roleLabel: string;
   topbarActions?: ReactNode;
 }
@@ -126,10 +127,24 @@ export function AppShell({
   tenantName,
   tenantSlug,
   userEmail,
+  roleKey,
   roleLabel,
   topbarActions
 }: AppShellProps) {
   const pathname = usePathname();
+  const isAdmin = roleKey === "PLATFORM_ADMIN" || roleKey === "TENANT_ADMIN";
+  const utilityActions = (
+    <>
+      <Link className="button button--ghost" href={`/dispatch/report-issue?pagePath=${encodeURIComponent(pathname)}` as Route}>
+        Report issue
+      </Link>
+      {isAdmin ? (
+        <Link className="button button--ghost" href={"/dispatch/issues" as Route}>
+          Issues inbox
+        </Link>
+      ) : null}
+    </>
+  );
 
   return (
     <div className="dispatch-shell">
@@ -144,7 +159,9 @@ export function AppShell({
             <div className="dispatch-nav__section" key={section.title}>
               <p className="dispatch-nav__section-title">{section.title}</p>
               <div className="dispatch-nav__section-items">
-                {section.items.map((item) => {
+                {section.items
+                  .filter((item) => !item.adminOnly || isAdmin)
+                  .map((item) => {
                   const active = pathname === item.href;
 
                   return (
@@ -179,6 +196,7 @@ export function AppShell({
               {roleLabel.replaceAll("_", " ")} | {tenantSlug}
             </span>
           </div>
+          <div className="dispatch-topbar__actions">{utilityActions}</div>
           {topbarActions ? <div className="dispatch-topbar__actions">{topbarActions}</div> : null}
         </div>
       </header>

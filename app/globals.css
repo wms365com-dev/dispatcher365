@@ -120,6 +120,15 @@ ul {
   font-size: 0.9rem;
 }
 
+.table-link {
+  color: #0a7fb0;
+  font-weight: 700;
+}
+
+.table-link:hover {
+  text-decoration: underline;
+}
+
 .note-list,
 .note-list ul {
   display: grid;
@@ -632,6 +641,35 @@ ul {
   color: #344756;
 }
 
+.issue-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #fbfdff;
+  display: grid;
+  gap: 14px;
+}
+
+.issue-card__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.issue-card__header h4 {
+  margin: 6px 0 4px;
+  color: #304657;
+}
+
+.issue-card__details,
+.issue-card__notes {
+  color: #35495a;
+}
+
+.issue-card__form {
+  padding-top: 4px;
+}
+
 .route-stop-list {
   display: grid;
   gap: 8px;
@@ -781,6 +819,54 @@ ul {
   border: 1px solid #c8d6df;
 }
 
+.legacy-manifest-preview {
+  align-items: start;
+}
+
+.legacy-manifest-paper {
+  width: 11in;
+  min-height: 8.5in;
+  padding: 0.5cm;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 0 5px rgb(0 0 0 / 10%);
+  font: 12pt Arial, Helvetica, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.legacy-manifest-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: Tahoma, Arial, Helvetica, sans-serif;
+  font-size: 11pt;
+  border: 1px solid #d3d3d3;
+}
+
+.legacy-manifest-table td,
+.legacy-manifest-table th {
+  padding: 2px;
+  border: 1px solid #d3d3d3;
+}
+
+.legacy-manifest-table th {
+  background: rgb(0 0 255 / 10%);
+  font-weight: 700;
+}
+
+.legacy-manifest-table__center {
+  text-align: center;
+}
+
+.legacy-manifest-table__strong {
+  font-weight: 700;
+}
+
+.legacy-manifest-table--detail {
+  margin-top: 50px;
+}
+
 .mini-preview-card h4 {
   margin-bottom: 8px;
   font-size: 0.98rem;
@@ -915,6 +1001,10 @@ ul {
   .legacy-bol-paper {
     width: min(100%, 8.5in);
   }
+
+  .legacy-manifest-paper {
+    width: min(100%, 11in);
+  }
 }
 
 @media (max-width: 1100px) {
@@ -993,6 +1083,7 @@ ul {
   .dispatch-topbar,
   .page-header,
   .legacy-bol-actions,
+  .route-manifest-actions,
   .print-hidden {
     display: none;
   }
@@ -1010,7 +1101,8 @@ ul {
 
   .surface,
   .section-card,
-  .legacy-bol-paper {
+  .legacy-bol-paper,
+  .legacy-manifest-paper {
     border: 0;
     box-shadow: none;
   }
@@ -1035,6 +1127,10 @@ ul {
     display: block;
   }
 
+  .legacy-manifest-preview {
+    display: block;
+  }
+
   .legacy-bol-paper {
     width: 8.5in;
     min-height: 11in;
@@ -1054,6 +1150,24 @@ ul {
 
   .legacy-bol-paper,
   .legacy-bol-paper * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .legacy-manifest-paper {
+    width: 11in;
+    min-height: 8.5in;
+    margin: 0 auto;
+    padding: 0.5cm;
+    border: 0;
+    background: #fff;
+    font: 12pt Arial, Helvetica, sans-serif;
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  .legacy-manifest-paper,
+  .legacy-manifest-paper * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
