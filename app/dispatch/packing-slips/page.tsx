@@ -1,16 +1,59 @@
-import { CustomerResolutionDemo } from "@/components/customer-resolution-demo";
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
 import { StatusPill } from "@/components/status-pill";
 import { createShipmentAction } from "@/lib/server/dispatch-actions";
 import { getPackingSlipsData } from "@/lib/server/dispatch-service";
-import { buildEmailSubject, buildRfqSubject } from "@/lib/workbook/formulas";
 
 interface PackingSlipsPageProps {
   searchParams?: Promise<{
     customerLookup?: string;
   }>;
+}
+
+interface PackingCustomerMatch {
+  id: string;
+  customerCode: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+}
+
+interface PackingCustomer {
+  id: string;
+  customerCode: string;
+  name: string;
+}
+
+interface PackingCarrier {
+  id: string;
+  carrierCode: string;
+  name: string;
+}
+
+interface PackingSalesRep {
+  id: string;
+  repCode: string;
+  fullName: string;
+}
+
+interface PackingProduct {
+  id: string;
+}
+
+interface PackingShipment {
+  batchId: string;
+  customerPo?: string | null;
+  salesOrder?: string | null;
+  shipDate?: Date | null;
+  cancelDate?: Date | null;
+  routeDeskDate?: Date | null;
+  routedDate?: Date | null;
+  salesperson?: string | null;
+  status: string;
+  customer: {
+    customerCode: string;
+  };
 }
 
 function formatDate(value?: Date | null) {
@@ -20,8 +63,13 @@ function formatDate(value?: Date | null) {
 export default async function PackingSlipsPage({ searchParams }: PackingSlipsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const customerLookup = params?.customerLookup;
-  const { customers, carriers, salesReps, products, shipments, lookupMatches } =
-    await getPackingSlipsData(customerLookup);
+  const packingData = await getPackingSlipsData(customerLookup);
+  const customers = packingData.customers as PackingCustomer[];
+  const carriers = packingData.carriers as PackingCarrier[];
+  const salesReps = packingData.salesReps as PackingSalesRep[];
+  const products = packingData.products as PackingProduct[];
+  const shipments = packingData.shipments as PackingShipment[];
+  const lookupMatches = packingData.lookupMatches as PackingCustomerMatch[];
 
   const rows = shipments.map((shipment) => ({
     batchId: shipment.batchId,
@@ -35,20 +83,18 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
     status: <StatusPill status={shipment.status} />
   }));
 
-  const sampleCustomer = customers[0];
-
   return (
     <>
       <PageHeader
         eyebrow="Packing Slip"
         title="Add Packing"
-        description="This screen now follows the old dispatch workflow much more closely: enter the shipment, keep the dense routing fields together, then review the packing queue below."
+        description="Enter the shipment quickly, keep routing fields together, then move it straight into the packing queue."
       />
 
       <div className="legacy-page-grid">
         <SectionCard
           title="Use Form Input"
-          description="This is the rebuilt add-packing screen. The goal here is speed for dispatch, not a generic modern form."
+          description="Built for fast dispatch entry. Fill the shipment, submit it, and it drops into the queue below."
         >
           <form action={createShipmentAction} className="legacy-form-grid">
             <label className="field">
@@ -171,6 +217,9 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
                 Reset
               </button>
             </div>
+            <p className="helper-text field--wide">
+              If weight is left blank, the system follows the legacy rule and falls back to cartons x 20 lb.
+            </p>
 
             <datalist id="customer-codes">
               {customers.map((customer) => (
@@ -198,7 +247,7 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
 
         <SectionCard
           title="Use Excel File"
-          description="Bulk import is still part of the legacy workflow. This pass keeps the affordance visible while the real import parser is rebuilt."
+          description="Bulk intake stays visible here because it is part of the original dispatch workflow."
         >
           <div className="note-list">
             <p>Download a sample file, then upload a tenant-safe import file for packing slip intake.</p>
@@ -213,7 +262,7 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
 
       <SectionCard
         title="All Packing Slip"
-        description="This list keeps the same core columns the original BOL and routing steps depend on."
+        description="This queue keeps the core columns the BOL and truck-run steps depend on."
       >
         <SimpleTable
           columns={[
@@ -232,35 +281,28 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
         />
       </SectionCard>
 
-      <div className="legacy-page-grid">
+      {customerLookup ? (
         <SectionCard
           title="Customer Resolution"
-          description="If the typed customer code is not found, dispatch gets the closest tenant-owned matches instead of silently creating bad data."
+          description="No exact customer match was found. Pick the closest tenant-owned customer or add the customer before retrying the packing slip."
         >
-          {customerLookup ? (
-            <p className="helper-text">
-              No exact customer match was found for <strong>{customerLookup}</strong>. Choose the closest tenant match
-              below or add the customer first.
-            </p>
-          ) : null}
-
-          <CustomerResolutionDemo
-            customers={customerLookup ? lookupMatches : customers}
-            initialValue={customerLookup ?? "BEAOUT"}
+          <SimpleTable
+            columns={[
+              { key: "customerCode", label: "Customer number" },
+              { key: "name", label: "Name" },
+              { key: "city", label: "City" },
+              { key: "state", label: "State" }
+            ]}
+            rows={lookupMatches.map((customer) => ({
+              customerCode: customer.customerCode,
+              name: customer.name,
+              city: customer.city ?? "-",
+              state: customer.state ?? "-"
+            }))}
+            emptyMessage={`No tenant-owned matches were found for ${customerLookup}. Add the customer first.`}
           />
         </SectionCard>
-
-        <SectionCard
-          title="Derived Subject Fields"
-          description="These legacy workbook subjects still matter, but they now come from code instead of hidden Excel formulas."
-        >
-          <ul className="note-list">
-            <li>{buildEmailSubject(sampleCustomer?.customerCode ?? "WG", "1253062", "1253062")}</li>
-            <li>{buildRfqSubject(sampleCustomer?.customerCode ?? "WG", "1253062")}</li>
-            <li>If weight is left blank, the current build defaults to the legacy rule of cartons x 20 lb.</li>
-          </ul>
-        </SectionCard>
-      </div>
+      ) : null}
     </>
   );
 }

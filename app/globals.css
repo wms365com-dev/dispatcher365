@@ -431,6 +431,32 @@ ul {
   gap: 12px 16px;
 }
 
+.inline-form,
+.table-action-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.inline-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.inline-form--compact {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.inline-form input,
+.inline-form select {
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 1px solid #bccad4;
+  border-radius: 2px;
+  background: #fff;
+  color: var(--ink);
+}
+
 .field,
 .checkbox-field {
   display: grid;
@@ -524,6 +550,98 @@ ul {
 .table__empty {
   text-align: center;
   color: var(--muted);
+}
+
+.legacy-bol-stage {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 18px;
+}
+
+.legacy-bol-stage__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #415563;
+  font-size: 0.84rem;
+}
+
+.legacy-bol-stage__label {
+  font-weight: 700;
+}
+
+.legacy-bol-stage__use {
+  width: 48px;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid #bccad4;
+  background: #fff;
+  text-align: center;
+}
+
+.legacy-bol-stage__list {
+  display: grid;
+  gap: 0;
+}
+
+.legacy-bol-stage__input {
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid #bccad4;
+  border-top: 0;
+  background: #fff;
+  color: var(--ink);
+}
+
+.legacy-bol-stage__list .legacy-bol-stage__input:first-child {
+  border-top: 1px solid #bccad4;
+}
+
+.legacy-bol-stage__input:focus,
+.legacy-bol-stage__use:focus {
+  outline: 1px solid #7fc5ea;
+  border-color: #7fc5ea;
+}
+
+.legacy-bol-stage__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.legacy-bol-stage__actions .button {
+  min-width: 148px;
+}
+
+.legacy-bol-stage__notice {
+  color: #516675;
+  font-size: 0.84rem;
+}
+
+.legacy-bol-table-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 260px);
+  gap: 12px;
+  padding: 16px 18px 0;
+}
+
+.legacy-bol-table {
+  min-width: 1280px;
+}
+
+.legacy-bol-table__batch {
+  font-weight: 700;
+  color: #2e4656;
+}
+
+.legacy-bol-table__batch--active {
+  cursor: pointer;
+  color: #0b77a6;
+  text-decoration: underline;
+}
+
+.legacy-bol-table__batch--active:hover {
+  color: #075f87;
 }
 
 .status-pill {
@@ -1029,6 +1147,10 @@ ul {
   .auth-page {
     grid-template-columns: 1fr;
   }
+
+  .legacy-bol-table-tools {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
@@ -1069,6 +1191,10 @@ ul {
 
   .dispatch-content {
     padding: 14px 0 24px;
+  }
+
+  .legacy-bol-stage__actions {
+    flex-wrap: wrap;
   }
 }
 

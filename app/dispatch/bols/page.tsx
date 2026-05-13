@@ -1,9 +1,9 @@
 import { BolPreviewActions } from "@/components/bol-preview-actions";
+import { BolStagingWorkspace } from "@/components/bol-staging-workspace";
 import { LegacyBolDocument } from "@/components/legacy-bol-document";
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
-import { StatusPill } from "@/components/status-pill";
 import { generateBillOfLadingAction } from "@/lib/server/dispatch-actions";
 import { getBolsData } from "@/lib/server/dispatch-service";
 
@@ -14,6 +14,85 @@ interface BolsPageProps {
     generated?: string;
     emailStatus?: string;
   }>;
+}
+
+interface BolCustomerLocation {
+  name?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  isDefault?: boolean | null;
+}
+
+interface BolCustomer {
+  customerCode: string;
+  name: string;
+  billingAddress1?: string | null;
+  billingAddress2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  shipEmail?: string | null;
+  shipName?: string | null;
+  shipAddress1?: string | null;
+  shipAddress2?: string | null;
+  shipCity?: string | null;
+  shipState?: string | null;
+  shipPostalCode?: string | null;
+  comments?: string | null;
+  freightTerms?: string | null;
+  locations: BolCustomerLocation[];
+}
+
+interface BolCarrier {
+  name?: string | null;
+  carrierCode?: string | null;
+  scac?: string | null;
+  email?: string | null;
+}
+
+interface BolShipment {
+  id: string;
+  batchId: string;
+  customerPo?: string | null;
+  salesOrder?: string | null;
+  salesperson?: string | null;
+  status: string;
+  routedDate?: Date | null;
+  shipDate?: Date | null;
+  cancelDate?: Date | null;
+  deliveryDate?: Date | null;
+  deliveryWindow?: string | null;
+  routeDeskDate?: Date | null;
+  authorization?: string | null;
+  approvedBy?: string | null;
+  scac?: string | null;
+  checkOrCash?: string | null;
+  comments?: string | null;
+  codAmount?: number | null;
+  units: number;
+  cartons: number;
+  pallets: number;
+  weightLb: number;
+  cubeCuFt?: number | null;
+  heightIn?: number | null;
+  freightClass?: string | null;
+  department?: string | null;
+  customer: BolCustomer;
+  carrier?: BolCarrier | null;
+}
+
+interface GroupedBolRecord {
+  bolNumber: string;
+  templateVariant: string;
+  freightTerms?: string | null;
+  carrierName?: string | null;
+  updatedAt: Date;
+  shipments: BolShipment[];
 }
 
 function formatDate(value?: Date | null) {
@@ -99,6 +178,13 @@ function formatLegacyMoney(value?: number | null) {
   return value.toFixed(2);
 }
 
+function formatStatusLabel(value: string) {
+  return value
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 function normalizeSearchBatchIds(value?: string | string[]) {
   const raw = Array.isArray(value) ? value : value ? [value] : [];
   return [...new Set(raw.flatMap((entry) => entry.split(/[,\s]+/).map((item) => item.trim().toUpperCase()).filter(Boolean)))];
@@ -124,11 +210,28 @@ function matchesSelectedBatchIds(
 export default async function BolsPage({ searchParams }: BolsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const selectedBatchIds = normalizeSearchBatchIds(params?.batchIds);
-  const selectedBatchSet = new Set(selectedBatchIds);
-  const { context, shipments, readyShipments, groupedBills, emailConfigured } = await getBolsData();
+  const bolData = await getBolsData();
+  const context = bolData.context as {
+    tenant: {
+      name: string;
+      gs1CompanyPrefix?: string | null;
+      warehouseAddress1?: string | null;
+      warehouseAddress2?: string | null;
+      warehouseCity?: string | null;
+      warehouseState?: string | null;
+      warehousePostalCode?: string | null;
+      warehousePhone?: string | null;
+    };
+    user: {
+      email: string;
+    };
+  };
+  const shipments = bolData.shipments as BolShipment[];
+  const groupedBills = bolData.groupedBills as GroupedBolRecord[];
+  const emailConfigured = bolData.emailConfigured;
 
   const selectedShipments = shipments
-    .filter((shipment) => selectedBatchSet.has(shipment.batchId))
+    .filter((shipment) => selectedBatchIds.includes(shipment.batchId))
     .sort((left, right) => left.batchId.localeCompare(right.batchId));
 
   const selectedRows = selectedShipments.map((shipment) => ({
@@ -136,33 +239,45 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     customerNumber: shipment.customer.customerCode,
     customerPo: shipment.customerPo ?? "-",
     orderNumber: shipment.salesOrder ?? "-",
+    startDate: formatDate(shipment.shipDate),
+    cancelDate: formatDate(shipment.cancelDate),
     salesPerson: shipment.salesperson ?? "-",
-    status: <StatusPill status={shipment.status} />,
-    truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-"
+    routeDeskDate: formatDate(shipment.routeDeskDate),
+    status: formatStatusLabel(shipment.status),
+    shippedDate: formatDate(shipment.shipDate),
+    truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-",
+    units: String(shipment.units),
+    cartons: String(shipment.cartons),
+    pallets: String(shipment.pallets),
+    weight: formatLegacyNumber(shipment.weightLb),
+    height: formatLegacyNumber(shipment.heightIn),
+    freightClass: shipment.freightClass ?? "-",
+    cube: formatLegacyNumber(shipment.cubeCuFt),
+    comments: shipment.comments ?? "-",
+    canStage: shipment.status !== "DELIVERED"
   }));
 
   const allPackingRows = shipments.map((shipment) => ({
-    select: (
-      <input
-        defaultChecked={selectedBatchSet.has(shipment.batchId)}
-        name="batchIds"
-        type="checkbox"
-        value={shipment.batchId}
-      />
-    ),
     batchId: shipment.batchId,
     customerNumber: shipment.customer.customerCode,
     customerPo: shipment.customerPo ?? "-",
     orderNumber: shipment.salesOrder ?? "-",
-    status: <StatusPill status={shipment.status} />,
+    startDate: formatDate(shipment.shipDate),
+    cancelDate: formatDate(shipment.cancelDate),
+    salesPerson: shipment.salesperson ?? "-",
+    routeDeskDate: formatDate(shipment.routeDeskDate),
+    status: formatStatusLabel(shipment.status),
     shippedDate: formatDate(shipment.shipDate),
     truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-",
-    units: shipment.units,
-    cartons: shipment.cartons,
-    pallets: shipment.pallets,
+    units: String(shipment.units),
+    cartons: String(shipment.cartons),
+    pallets: String(shipment.pallets),
     weight: formatLegacyNumber(shipment.weightLb),
+    height: formatLegacyNumber(shipment.heightIn),
     freightClass: shipment.freightClass ?? "-",
-    comments: shipment.comments ?? "-"
+    cube: formatLegacyNumber(shipment.cubeCuFt),
+    comments: shipment.comments ?? "-",
+    canStage: shipment.status !== "DELIVERED"
   }));
 
   const groupedRows = groupedBills.map((bill) => ({
@@ -315,85 +430,20 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         </SectionCard>
       ) : null}
 
-      <form action="/dispatch/bols" className="print-hidden" id="bol-selector-form" method="get">
-        <div className="split-grid">
-          <SectionCard
-            title="Enter Batch ID"
-            description="Use the packing slip list below to select the orders you want grouped under one BOL."
-          >
-            <div className="field-grid">
-              <label className="field">
-                <span>Use</span>
-                <input readOnly value={String(selectedBatchIds.length)} />
-              </label>
-              <label className="field field--wide">
-                <span>Selected Batch IDs</span>
-                <input readOnly value={selectedBatchIds.join(", ")} />
-              </label>
-              <div className="field field--wide form-actions">
-                <button className="button" type="submit">
-                  Show Data
-                </button>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            title="Packing Slip Was Chosen"
-            description="The old BOL screen staged the chosen packing rows first, then built the print form from that grouped selection."
-          >
-            {selectedRows.length ? (
-              <SimpleTable
-                columns={[
-                  { key: "batchId", label: "Batch ID" },
-                  { key: "customerNumber", label: "Customer number" },
-                  { key: "customerPo", label: "Customer PO" },
-                  { key: "orderNumber", label: "Order Number" },
-                  { key: "salesPerson", label: "Sales Person" },
-                  { key: "status", label: "Status" },
-                  { key: "truck", label: "Truck" }
-                ]}
-                rows={selectedRows}
-                emptyMessage="NODATA"
-              />
-            ) : (
-              <p className="helper-text">NODATA</p>
-            )}
-          </SectionCard>
-        </div>
-
-        <SectionCard
-          title="All Packing Slip"
-          description="Choose one or more packing slips, then click Show Data to stage them into one grouped BOL."
-        >
-          <SimpleTable
-            columns={[
-              { key: "select", label: "Use" },
-              { key: "batchId", label: "Batch ID" },
-              { key: "customerNumber", label: "Customer number" },
-              { key: "customerPo", label: "Customer PO" },
-              { key: "orderNumber", label: "Order Number" },
-              { key: "status", label: "Status" },
-              { key: "shippedDate", label: "Shipped date" },
-              { key: "truck", label: "Truck" },
-              { key: "units", label: "Units" },
-              { key: "cartons", label: "Cartons" },
-              { key: "pallets", label: "Pallets" },
-              { key: "weight", label: "Weight" },
-              { key: "freightClass", label: "Freight Class" },
-              { key: "comments", label: "Comments" }
-            ]}
-            rows={allPackingRows}
-            emptyMessage="No packing slips are available right now."
-          />
-        </SectionCard>
-      </form>
+      <div className="print-hidden">
+        <BolStagingWorkspace
+          allRows={allPackingRows}
+          hasInvalidSelection={selectedBatchIds.length > 0 && selectedRows.length === 0}
+          initialBatchIds={selectedBatchIds}
+          selectedRows={selectedRows}
+        />
+      </div>
 
       {selectedBatchIds.length ? (
         <SectionCard
           className="print-hidden"
           title="Generate Grouped BOL"
-          description="This follows the old AESON behavior: the selected packing slips are grouped under one bill number and printed on one BOL."
+          description="This follows the old AESON behavior: review the chosen packing slips first, then create one grouped BOL from that staged selection."
         >
           <form action={generateBillOfLadingAction} className="field-grid">
             <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
