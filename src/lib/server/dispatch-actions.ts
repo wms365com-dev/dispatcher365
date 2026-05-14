@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  assignDriverToRouteAssignment,
   createCarrier,
   createCompany,
   createCustomer,
@@ -18,6 +19,8 @@ import {
   publishRouteRun,
   queueLabelJob,
   recordDeliveryEvent,
+  recordDriverLocationPing,
+  respondToRouteAssignment,
   sendBolEmail,
   sendRouteManifestEmail,
   updateIssueReport
@@ -122,7 +125,31 @@ export async function publishRouteRunAction(formData: FormData) {
   await publishRouteRun(toFormObject(formData));
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/routes");
+  revalidatePath("/dispatch/assignments");
   redirect("/dispatch/routes");
+}
+
+export async function respondToRouteAssignmentAction(formData: FormData) {
+  await respondToRouteAssignment(toFormObject(formData));
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/assignments");
+  redirect("/dispatch/assignments");
+}
+
+export async function assignRouteAssignmentDriverAction(formData: FormData) {
+  await assignDriverToRouteAssignment(toFormObject(formData));
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/routes");
+  revalidatePath("/dispatch/assignments");
+  redirect("/dispatch/assignments");
+}
+
+export async function recordDriverLocationPingAction(formData: FormData) {
+  await recordDriverLocationPing(toFormObject(formData));
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/assignments");
+  revalidatePath("/dispatch/routes");
+  redirect("/dispatch/assignments");
 }
 
 export async function queueLabelJobAction(formData: FormData) {

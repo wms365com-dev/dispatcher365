@@ -172,9 +172,13 @@ export const userCreateSchema = z.object({
     "DISPATCHER",
     "WAREHOUSE",
     "CUSTOMER_SERVICE",
+    "CARRIER_ADMIN",
+    "CARRIER_DISPATCHER",
     "DRIVER"
   ]),
-  tenantSlug: optionalText
+  tenantSlug: optionalText,
+  carrierCode: optionalText.transform((value) => value?.toUpperCase()),
+  driverCode: optionalText.transform((value) => value?.toUpperCase())
 });
 
 export const companyCreateSchema = z.object({
@@ -218,4 +222,25 @@ export const outboundEmailSchema = z.object({
   toEmail: z.string().trim().email(),
   bolNumber: optionalText,
   routeRunId: optionalText
+});
+
+export const routeAssignmentRespondSchema = z.object({
+  routeAssignmentId: z.string().trim().min(1),
+  status: z.enum(["ACCEPTED", "DECLINED"]),
+  declineReason: optionalText
+});
+
+export const routeAssignmentDriverSchema = z.object({
+  routeAssignmentId: z.string().trim().min(1),
+  driverCode: z.string().trim().min(1).transform((value) => value.toUpperCase())
+});
+
+export const driverLocationPingCreateSchema = z.object({
+  routeAssignmentId: z.string().trim().min(1),
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+  accuracyMeters: optionalNumber,
+  speedMph: optionalNumber,
+  headingDegrees: optionalNumber,
+  batteryLevel: optionalNumber
 });

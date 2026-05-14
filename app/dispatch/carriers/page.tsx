@@ -7,8 +7,38 @@ import {
 } from "@/lib/server/dispatch-actions";
 import { getCarriersData } from "@/lib/server/dispatch-service";
 
+interface CarrierRecord {
+  id: string;
+  carrierCode: string;
+  name: string;
+  address1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  phone?: string | null;
+  cell?: string | null;
+  email?: string | null;
+  _count: {
+    portalUsers: number;
+    assignments: number;
+  };
+}
+
+interface DriverRecord {
+  id: string;
+  driverCode: string;
+  fullName: string;
+  phone?: string | null;
+  email?: string | null;
+  carrier?: {
+    carrierCode: string;
+  } | null;
+}
+
 export default async function CarriersPage() {
-  const { carriers, drivers } = await getCarriersData();
+  const carriersData = await getCarriersData();
+  const carriers = carriersData.carriers as CarrierRecord[];
+  const drivers = carriersData.drivers as DriverRecord[];
 
   const carrierRows = carriers.map((carrier) => ({
     code: carrier.carrierCode,
@@ -19,7 +49,9 @@ export default async function CarriersPage() {
     postalCode: carrier.postalCode ?? "-",
     tel: carrier.phone ?? "-",
     cell: carrier.cell ?? "-",
-    email: carrier.email ?? "-"
+    email: carrier.email ?? "-",
+    portalUsers: String(carrier._count.portalUsers),
+    assignments: String(carrier._count.assignments)
   }));
 
   const driverRows = drivers.map((driver) => ({
@@ -35,7 +67,7 @@ export default async function CarriersPage() {
       <PageHeader
         eyebrow="Carriers"
         title="Carrier Info"
-        description="This matches the old carrier module more closely: add the trucking company, keep richer dispatch contact details, then attach drivers for truck runs."
+        description="This now covers both the legacy carrier master and the new carrier-portal foundation: trucking company, drivers, portal users, and assigned runs."
       />
 
       <div className="legacy-page-grid">
@@ -141,7 +173,9 @@ export default async function CarriersPage() {
               { key: "postalCode", label: "Zipcode" },
               { key: "tel", label: "Tel" },
               { key: "cell", label: "Cell" },
-              { key: "email", label: "Email" }
+              { key: "email", label: "Email" },
+              { key: "portalUsers", label: "Portal Users" },
+              { key: "assignments", label: "Assigned Runs" }
             ]}
             rows={carrierRows}
             emptyMessage="No carriers have been added for this tenant yet."

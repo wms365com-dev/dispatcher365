@@ -13,6 +13,8 @@ enum MembershipRole {
   DISPATCHER
   WAREHOUSE
   CUSTOMER_SERVICE
+  CARRIER_ADMIN
+  CARRIER_DISPATCHER
   DRIVER
 }
 
@@ -88,6 +90,24 @@ enum MobileAlertStatus {
   ACKNOWLEDGED
 }
 
+enum RouteAssignmentStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  DRIVER_ASSIGNED
+  IN_TRANSIT
+  COMPLETED
+  EXCEPTION
+  CANCELLED
+  REASSIGNED
+}
+
+enum DriverDevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
 model Tenant {
   id                  String             @id @default(cuid())
   slug                String             @unique
@@ -122,6 +142,9 @@ model Tenant {
   issueReports        IssueReport[]
   outboundEmails      OutboundEmail[]
   mobileAlerts        MobileAlert[]
+  routeAssignments    RouteAssignment[]
+  driverDevices       DriverDevice[]
+  driverLocationPings DriverLocationPing[]
   auditLogs           AuditLog[]
 }
 
@@ -136,6 +159,8 @@ model User {
   createdRoutes  RouteRun[]         @relation("RouteCreatedBy")
   issueReports   IssueReport[]
   outboundEmails OutboundEmail[]
+  routeAssignmentsCreated   RouteAssignment[] @relation("RouteAssignmentCreatedBy")
+  routeAssignmentsResponded RouteAssignment[] @relation("RouteAssignmentRespondedBy")
   auditLogs      AuditLog[]
 }
 
@@ -144,11 +169,19 @@ model TenantMembership {
   tenantId  String
   userId    String
   role      MembershipRole
+  carrierId String?
+  driverId  String?
+  isPortalAccess Boolean   @default(false)
   createdAt DateTime       @default(now())
   tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carrier   Carrier?       @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  driver    Driver?        @relation(fields: [driverId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, userId])
+  @@index([tenantId, role])
+  @@index([carrierId])
+  @@index([driverId])
 }
 
 model Customer {
@@ -234,8 +267,10 @@ model Carrier {
   updatedAt     DateTime   @updatedAt
   tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   drivers       Driver[]
+  portalUsers   TenantMembership[]
   shipments     Shipment[]
   routes        RouteRun[]
+  assignments   RouteAssignment[]
 
   @@unique([tenantId, carrierCode])
 }
@@ -271,6 +306,10 @@ model Driver {
   routes         RouteRun[]
   deliveryEvents DeliveryEvent[]
   mobileAlerts   MobileAlert[]
+  portalUsers    TenantMembership[]
+  assignments    RouteAssignment[]
+  devices        DriverDevice[]
+  locationPings  DriverLocationPing[]
 
   @@unique([tenantId, driverCode])
 }
@@ -408,6 +447,7 @@ model RouteRun {
   driver         Driver?         @relation(fields: [driverId], references: [id], onDelete: SetNull)
   createdBy      User?           @relation("RouteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   stops          RouteStop[]
+  assignments    RouteAssignment[]
   outboundEmails OutboundEmail[]
   mobileAlerts   MobileAlert[]
 
@@ -441,6 +481,7 @@ model DeliveryEvent {
   tenantId          String
   shipmentId        String
   routeStopId       String?
+  routeAssignmentId String?
   driverId          String?
   eventType         DeliveryEventType
   eventAt           DateTime          @default(now())
@@ -455,6 +496,7 @@ model DeliveryEvent {
   tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   shipment          Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   routeStop         RouteStop?        @relation(fields: [routeStopId], references: [id], onDelete: SetNull)
+  routeAssignment   RouteAssignment?  @relation(fields: [routeAssignmentId], references: [id], onDelete: SetNull)
   driver            Driver?           @relation(fields: [driverId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, shipmentId])
@@ -534,6 +576,7 @@ model MobileAlert {
   tenantId       String
   routeRunId     String
   driverId       String
+  routeAssignmentId String?
   title          String
   body           String
   payloadJson    String?
@@ -546,9 +589,89 @@ model MobileAlert {
   tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   routeRun       RouteRun          @relation(fields: [routeRunId], references: [id], onDelete: Cascade)
   driver         Driver            @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  routeAssignment RouteAssignment? @relation(fields: [routeAssignmentId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status, createdAt])
   @@index([driverId, status, createdAt])
+}
+
+model RouteAssignment {
+  id                String                @id @default(cuid())
+  tenantId          String
+  routeRunId        String
+  carrierId         String
+  driverId          String?
+  assignedByUserId  String?
+  respondedByUserId String?
+  trackingNumber    String
+  status            RouteAssignmentStatus @default(OFFERED)
+  offeredAt         DateTime              @default(now())
+  acceptedAt        DateTime?
+  declinedAt        DateTime?
+  driverAssignedAt  DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  lastLocationAt    DateTime?
+  declineReason     String?
+  notes             String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  routeRun          RouteRun              @relation(fields: [routeRunId], references: [id], onDelete: Cascade)
+  carrier           Carrier               @relation(fields: [carrierId], references: [id], onDelete: Restrict)
+  driver            Driver?               @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  assignedBy        User?                 @relation("RouteAssignmentCreatedBy", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  respondedBy       User?                 @relation("RouteAssignmentRespondedBy", fields: [respondedByUserId], references: [id], onDelete: SetNull)
+  mobileAlerts      MobileAlert[]
+  locationPings     DriverLocationPing[]
+  deliveryEvents    DeliveryEvent[]
+
+  @@unique([tenantId, trackingNumber])
+  @@index([tenantId, status, offeredAt])
+  @@index([routeRunId, status])
+  @@index([carrierId, status])
+  @@index([driverId, status])
+}
+
+model DriverDevice {
+  id          String               @id @default(cuid())
+  tenantId    String
+  driverId    String
+  deviceLabel String?
+  platform    DriverDevicePlatform @default(ANDROID)
+  pushToken   String
+  appVersion  String?
+  lastSeenAt  DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  driver      Driver               @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, driverId])
+  @@unique([driverId, pushToken])
+}
+
+model DriverLocationPing {
+  id                String          @id @default(cuid())
+  tenantId          String
+  routeAssignmentId String
+  driverId          String
+  latitude          Float
+  longitude         Float
+  accuracyMeters    Float?
+  speedMph          Float?
+  headingDegrees    Float?
+  batteryLevel      Float?
+  capturedAt        DateTime        @default(now())
+  createdAt         DateTime        @default(now())
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  routeAssignment   RouteAssignment @relation(fields: [routeAssignmentId], references: [id], onDelete: Cascade)
+  driver            Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, capturedAt])
+  @@index([routeAssignmentId, capturedAt])
+  @@index([driverId, capturedAt])
 }
 
 model AuditLog {

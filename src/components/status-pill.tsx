@@ -16,9 +16,15 @@ function toTone(status: string) {
   if (
     normalized === "routed" ||
     normalized === "published" ||
-    normalized === "in-transit"
+    normalized === "in-transit" ||
+    normalized === "accepted" ||
+    normalized === "driver-assigned"
   ) {
     return "active";
+  }
+
+  if (normalized === "offered") {
+    return "ready";
   }
 
   if (
@@ -32,6 +38,8 @@ function toTone(status: string) {
   if (
     normalized === "exception" ||
     normalized === "cancelled" ||
+    normalized === "declined" ||
+    normalized === "reassigned" ||
     normalized === "refused" ||
     normalized === "returned"
   ) {

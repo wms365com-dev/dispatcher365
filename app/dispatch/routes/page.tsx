@@ -16,15 +16,87 @@ interface RoutesPageProps {
   }>;
 }
 
+interface RouteCandidateRecord {
+  batchId: string;
+  shipDate?: Date | null;
+  pallets: number;
+  cartons: number;
+  status: string;
+  customer: {
+    customerCode: string;
+    name: string;
+  };
+  carrier?: {
+    carrierCode: string;
+  } | null;
+}
+
+interface RouteAlertRecord {
+  routeRunId: string;
+}
+
+interface RouteAssignmentRecord {
+  routeRunId: string;
+  trackingNumber: string;
+  status: string;
+}
+
+interface RouteStopRecord {
+  id: string;
+  stopNumber: number;
+  status: string;
+  shipment: {
+    batchId: string;
+    customer: {
+      customerCode: string;
+      city?: string | null;
+      state?: string | null;
+    };
+  };
+}
+
+interface RouteRunRecord {
+  id: string;
+  routeDate: Date;
+  routeName: string;
+  status: string;
+  mobileSyncAt?: Date | null;
+  carrier?: {
+    carrierCode: string;
+  } | null;
+  driver?: {
+    fullName: string;
+  } | null;
+  stops: RouteStopRecord[];
+}
+
+interface RouteCarrierRecord {
+  id: string;
+  carrierCode: string;
+  name: string;
+}
+
+interface RouteDriverRecord {
+  id: string;
+  driverCode: string;
+  fullName: string;
+}
+
 function formatDate(value: Date) {
   return value.toISOString().slice(0, 10);
 }
 
 export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   const params = searchParams ? await searchParams : undefined;
-  const { carriers, drivers, routeCandidates, routes, routeIssue, mobileAlerts, emailConfigured } = await getRoutesData(
-    params?.routeIssue
-  );
+  const routesData = await getRoutesData(params?.routeIssue);
+  const carriers = routesData.carriers as RouteCarrierRecord[];
+  const drivers = routesData.drivers as RouteDriverRecord[];
+  const routeCandidates = routesData.routeCandidates as RouteCandidateRecord[];
+  const routes = routesData.routes as RouteRunRecord[];
+  const mobileAlerts = routesData.mobileAlerts as RouteAlertRecord[];
+  const assignments = routesData.assignments as RouteAssignmentRecord[];
+  const routeIssue = routesData.routeIssue;
+  const emailConfigured = routesData.emailConfigured;
 
   const candidateRows = routeCandidates.map((shipment) => ({
     batchId: shipment.batchId,
@@ -37,6 +109,8 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   }));
 
   const routeRows = routes.map((route) => ({
+    tracking:
+      assignments.find((assignment) => assignment.routeRunId === route.id)?.trackingNumber ?? "Pending",
     manifest: (
       <Link className="table-link" href={`/dispatch/routes/${route.id}/manifest`}>
         View manifest
@@ -48,6 +122,8 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
     driver: route.driver?.fullName ?? "Unassigned",
     stops: String(route.stops.length),
     alerts: String(mobileAlerts.filter((alert) => alert.routeRunId === route.id).length),
+    assignment:
+      assignments.find((assignment) => assignment.routeRunId === route.id)?.status.replaceAll("_", " ") ?? "Pending offer",
     stopStatusSummary:
       route.stops.length === 0
         ? "No stops"
@@ -72,7 +148,7 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
       <PageHeader
         eyebrow="Truck run"
         title="Truck Run Planning"
-        description="This is the rebuilt version of the live truck-run module: assign carrier and driver, group BOL-created batches, then publish the run."
+        description="This is the rebuilt truck-run module: group BOL-created batches, assign a carrier, publish the run, and hand it into the new carrier assignment workflow with tracking numbers."
       />
 
       {routeIssue ? (
@@ -177,18 +253,20 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
       >
         <SimpleTable
           columns={[
+            { key: "tracking", label: "Tracking" },
             { key: "manifest", label: "Manifest" },
             { key: "date", label: "Date" },
             { key: "routeName", label: "Route" },
-          { key: "carrier", label: "Carrier" },
-          { key: "driver", label: "Driver" },
-          { key: "stops", label: "Stops" },
-          { key: "alerts", label: "Alerts" },
-          { key: "stopStatusSummary", label: "Stop Progress" },
-          { key: "status", label: "Status" },
-          { key: "mobile", label: "Mobile Sync" },
-          { key: "action", label: "Action" }
-        ]}
+            { key: "carrier", label: "Carrier" },
+            { key: "driver", label: "Driver" },
+            { key: "stops", label: "Stops" },
+            { key: "alerts", label: "Alerts" },
+            { key: "assignment", label: "Assignment" },
+            { key: "stopStatusSummary", label: "Stop Progress" },
+            { key: "status", label: "Status" },
+            { key: "mobile", label: "Mobile Sync" },
+            { key: "action", label: "Action" }
+          ]}
           rows={routeRows}
           emptyMessage="No route runs have been created yet."
         />

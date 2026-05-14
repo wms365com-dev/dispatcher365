@@ -5,12 +5,15 @@ import {
   companyCreateSchema,
   customerCreateSchema,
   deliveryEventCreateSchema,
+  driverLocationPingCreateSchema,
   driverCreateSchema,
   issueReportCreateSchema,
   issueReportUpdateSchema,
   labelJobCreateSchema,
   outboundEmailSchema,
   productCreateSchema,
+  routeAssignmentDriverSchema,
+  routeAssignmentRespondSchema,
   routeCreateSchema,
   routePublishSchema,
   salesRepCreateSchema,
@@ -57,8 +60,33 @@ function isAdminRole(role: string) {
   return role === "PLATFORM_ADMIN" || role === "TENANT_ADMIN";
 }
 
+function isCarrierRole(role: string) {
+  return role === "CARRIER_ADMIN" || role === "CARRIER_DISPATCHER";
+}
+
+function isInternalOperationsRole(role: string) {
+  return [
+    "PLATFORM_ADMIN",
+    "TENANT_ADMIN",
+    "DISPATCHER",
+    "WAREHOUSE",
+    "CUSTOMER_SERVICE"
+  ].includes(role);
+}
+
+function normalizeStatusLabel(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 function getAppBaseUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "https://dispatcher365-production.up.railway.app";
+}
+
+function formatDateLabel(value: Date) {
+  return value.toISOString().slice(0, 10).replaceAll("-", "");
 }
 
 function escapeHtml(value: string) {
@@ -171,15 +199,15 @@ async function syncRouteRunStatus(routeRunId: string) {
     return null;
   }
 
-  const statuses = route.stops.map((stop) => stop.status);
+  const statuses = route.stops.map((stop: { status: string }) => stop.status);
 
   let status: "DRAFT" | "PUBLISHED" | "IN_TRANSIT" | "COMPLETED" = "DRAFT";
 
-  if (statuses.length && statuses.every((value) => terminalRouteStopStatuses.has(value))) {
+  if (statuses.length && statuses.every((value: string) => terminalRouteStopStatuses.has(value))) {
     status = "COMPLETED";
-  } else if (statuses.some((value) => value !== "PLANNED" && value !== "PUBLISHED")) {
+  } else if (statuses.some((value: string) => value !== "PLANNED" && value !== "PUBLISHED")) {
     status = "IN_TRANSIT";
-  } else if (statuses.some((value) => value === "PUBLISHED")) {
+  } else if (statuses.some((value: string) => value === "PUBLISHED")) {
     status = "PUBLISHED";
   }
 
@@ -197,7 +225,8 @@ async function getTenantScope() {
     tenantId: session.activeTenant.id,
     tenant: session.activeTenant,
     user: session.user,
-    role: session.activeMembership.role
+    role: session.activeMembership.role,
+    membership: session.activeMembership
   };
 }
 
@@ -267,18 +296,136 @@ async function createUniqueBolNumber(input: {
   return `${baseNumber}-${Date.now().toString().slice(-6)}`;
 }
 
+async function createUniqueRouteTrackingNumber(input: {
+  tenantId: string;
+  tenantSlug: string;
+  carrierCode: string;
+  routeDate: Date;
+  routeRunId: string;
+}) {
+  const base = [
+    input.tenantSlug.replace(/[^A-Z0-9]+/gi, "").toUpperCase().slice(0, 4) || "WMS",
+    input.carrierCode.replace(/[^A-Z0-9]+/gi, "").toUpperCase().slice(0, 4) || "CAR",
+    formatDateLabel(input.routeDate)
+  ].join("-");
+
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    const suffix = `${input.routeRunId.replace(/[^A-Z0-9]+/gi, "").toUpperCase().slice(-5)}${attempt}`
+      .padStart(6, "0")
+      .slice(-6);
+    const candidate = `${base}-${suffix}`;
+    const existing = await prisma.routeAssignment.findFirst({
+      where: {
+        tenantId: input.tenantId,
+        trackingNumber: candidate
+      }
+    });
+
+    if (!existing) {
+      return candidate;
+    }
+  }
+
+  return `${base}-${Date.now().toString().slice(-6)}`;
+}
+
+function getAssignmentWhereForMembership(input: {
+  tenantId: string;
+  role: string;
+  membershipCarrierId?: string | null;
+  membershipDriverId?: string | null;
+}) {
+  if (isCarrierRole(input.role)) {
+    return {
+      tenantId: input.tenantId,
+      carrierId: input.membershipCarrierId ?? "__no-carrier__"
+    };
+  }
+
+  if (input.role === "DRIVER") {
+    return {
+      tenantId: input.tenantId,
+      driverId: input.membershipDriverId ?? "__no-driver__"
+    };
+  }
+
+  return {
+    tenantId: input.tenantId
+  };
+}
+
+async function syncRouteAssignmentStatus(routeAssignmentId: string, input?: {
+  eventType?: string;
+  eventAt?: Date;
+}) {
+  const assignment = await prisma.routeAssignment.findUnique({
+    where: { id: routeAssignmentId },
+    include: {
+      routeRun: {
+        include: {
+          stops: {
+            select: {
+              status: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!assignment) {
+    return null;
+  }
+
+  const statuses = assignment.routeRun.stops.map((stop: { status: string }) => stop.status);
+  const routeCompleted = statuses.length > 0 && statuses.every((value: string) => terminalRouteStopStatuses.has(value));
+
+  let status = assignment.status;
+  const data: Record<string, Date | string | null> = {};
+
+  if (input?.eventType === "IN_TRANSIT") {
+    status = "IN_TRANSIT";
+    data.startedAt = assignment.startedAt ?? input.eventAt ?? new Date();
+  } else if (routeCompleted) {
+    status = statuses.some((value: string) => value === "EXCEPTION" || value === "REFUSED" || value === "RETURNED")
+      ? "EXCEPTION"
+      : "COMPLETED";
+    data.completedAt = assignment.completedAt ?? input?.eventAt ?? new Date();
+  }
+
+  if (status === assignment.status && !Object.keys(data).length) {
+    return assignment;
+  }
+
+  return prisma.routeAssignment.update({
+    where: { id: routeAssignmentId },
+    data: {
+      status,
+      ...data
+    }
+  });
+}
+
 export async function getAppContext() {
-  const { tenant, user, role } = await getTenantScope();
+  const { tenant, user, role, membership } = await getTenantScope();
 
   return {
     tenant,
     user,
-    role
+    role,
+    membership
   };
 }
 
 export async function getDashboardData() {
-  const { tenantId, tenant, user } = await getTenantScope();
+  const { tenantId, tenant, user, role, membership } = await getTenantScope();
+
+  const assignmentWhere = getAssignmentWhereForMembership({
+    tenantId,
+    role,
+    membershipCarrierId: membership.carrierId,
+    membershipDriverId: membership.driverId
+  });
 
   const [
     shipmentCount,
@@ -287,7 +434,11 @@ export async function getDashboardData() {
     bolCreatedCount,
     routedCount,
     publishedRouteCount,
-    recentShipments
+    recentShipments,
+    assignmentCount,
+    offeredAssignmentCount,
+    inTransitAssignmentCount,
+    recentAssignments
   ] = await Promise.all([
     prisma.shipment.count({ where: { tenantId } }),
     prisma.customer.count({ where: { tenantId } }),
@@ -304,11 +455,34 @@ export async function getDashboardData() {
       },
       orderBy: [{ updatedAt: "desc" }, { batchId: "desc" }],
       take: 6
+    }),
+    prisma.routeAssignment.count({ where: assignmentWhere }),
+    prisma.routeAssignment.count({
+      where: {
+        ...assignmentWhere,
+        status: "OFFERED"
+      }
+    }),
+    prisma.routeAssignment.count({
+      where: {
+        ...assignmentWhere,
+        status: "IN_TRANSIT"
+      }
+    }),
+    prisma.routeAssignment.findMany({
+      where: assignmentWhere,
+      include: {
+        carrier: true,
+        driver: true,
+        routeRun: true
+      },
+      orderBy: [{ updatedAt: "desc" }],
+      take: 6
     })
   ]);
 
   return {
-    context: { tenant, user },
+    context: { tenant, user, role, membership },
     metrics: {
       shipmentCount,
       customerCount,
@@ -317,7 +491,13 @@ export async function getDashboardData() {
       routedCount,
       publishedRouteCount
     },
-    recentShipments
+    recentShipments,
+    assignmentMetrics: {
+      assignmentCount,
+      offeredAssignmentCount,
+      inTransitAssignmentCount
+    },
+    recentAssignments
   };
 }
 
@@ -343,7 +523,7 @@ export async function getCarriersData() {
       where: { tenantId },
       include: {
         _count: {
-          select: { drivers: true, routes: true }
+          select: { drivers: true, routes: true, portalUsers: true, assignments: true }
         }
       },
       orderBy: [{ name: "asc" }]
@@ -474,45 +654,49 @@ export async function getBolsData() {
     })
   ]);
 
-  const groupedBills = Array.from(
-    bills.reduce((map, bill) => {
-      const current = map.get(bill.bolNumber);
+  type BillRecord = (typeof bills)[number];
+  type GroupedBillRecord = {
+    id: string;
+    billIds: string[];
+    bolNumber: string;
+    templateVariant: string;
+    freightTerms: string | null;
+    carrierName: string | null;
+    updatedAt: Date;
+    shipments: BillRecord["shipment"][];
+  };
 
-      if (current) {
-        current.shipments.push(bill.shipment);
-        current.billIds.push(bill.id);
-        if (bill.updatedAt > current.updatedAt) {
-          current.updatedAt = bill.updatedAt;
-          current.templateVariant = bill.templateVariant;
-          current.freightTerms = bill.freightTerms;
-          current.carrierName = bill.carrierName;
-        }
-      } else {
-        map.set(bill.bolNumber, {
-          id: bill.id,
-          billIds: [bill.id],
-          bolNumber: bill.bolNumber,
-          templateVariant: bill.templateVariant,
-          freightTerms: bill.freightTerms,
-          carrierName: bill.carrierName,
-          updatedAt: bill.updatedAt,
-          shipments: [bill.shipment]
-        });
+  const groupedBillMap = new Map<string, GroupedBillRecord>();
+
+  for (const bill of bills as BillRecord[]) {
+    const current = groupedBillMap.get(bill.bolNumber);
+
+    if (current) {
+      current.shipments.push(bill.shipment);
+      current.billIds.push(bill.id);
+      if (bill.updatedAt > current.updatedAt) {
+        current.updatedAt = bill.updatedAt;
+        current.templateVariant = bill.templateVariant;
+        current.freightTerms = bill.freightTerms;
+        current.carrierName = bill.carrierName;
       }
+      continue;
+    }
 
-      return map;
-    }, new Map<string, {
-      id: string;
-      billIds: string[];
-      bolNumber: string;
-      templateVariant: string;
-      freightTerms: string | null;
-      carrierName: string | null;
-      updatedAt: Date;
-      shipments: typeof bills[number]["shipment"][];
-    }>())
-  )
-    .map(([, group]) => ({
+    groupedBillMap.set(bill.bolNumber, {
+      id: bill.id,
+      billIds: [bill.id],
+      bolNumber: bill.bolNumber,
+      templateVariant: bill.templateVariant,
+      freightTerms: bill.freightTerms,
+      carrierName: bill.carrierName,
+      updatedAt: bill.updatedAt,
+      shipments: [bill.shipment]
+    });
+  }
+
+  const groupedBills = [...groupedBillMap.values()]
+    .map((group) => ({
       ...group,
       shipments: [...group.shipments].sort((left, right) => left.batchId.localeCompare(right.batchId))
     }))
@@ -521,7 +705,7 @@ export async function getBolsData() {
   return {
     context: { tenant, user },
     shipments,
-    readyShipments: shipments.filter((shipment) => shipment.status === "READY_FOR_BOL"),
+    readyShipments: shipments.filter((shipment: (typeof shipments)[number]) => shipment.status === "READY_FOR_BOL"),
     groupedBills,
     emailConfigured: emailTransportConfigured()
   };
@@ -562,24 +746,39 @@ export async function getLabelsData() {
 export async function getUsersData() {
   const { tenantId, tenant, user, role } = await getTenantScope();
 
-  const [memberships, tenants] = await Promise.all([
+  const [memberships, tenants, carriers, drivers] = await Promise.all([
     prisma.tenantMembership.findMany({
       where: role === "PLATFORM_ADMIN" ? undefined : { tenantId },
       include: {
         tenant: true,
-        user: true
+        user: true,
+        carrier: true,
+        driver: true
       },
       orderBy: [{ createdAt: "asc" }]
     }),
     prisma.tenant.findMany({
       orderBy: [{ name: "asc" }]
+    }),
+    prisma.carrier.findMany({
+      where: role === "PLATFORM_ADMIN" ? undefined : { tenantId },
+      orderBy: [{ name: "asc" }]
+    }),
+    prisma.driver.findMany({
+      where: role === "PLATFORM_ADMIN" ? undefined : { tenantId },
+      include: {
+        carrier: true
+      },
+      orderBy: [{ fullName: "asc" }]
     })
   ]);
 
   return {
     context: { tenant, user, role },
     memberships,
-    tenants
+    tenants,
+    carriers,
+    drivers
   };
 }
 
@@ -627,7 +826,7 @@ export async function getIssueReportsData() {
 export async function getRoutesData(routeIssue?: string) {
   const { tenantId, tenant, user } = await getTenantScope();
 
-  const [carriers, drivers, routeCandidates, routes, mobileAlerts] = await Promise.all([
+  const [carriers, drivers, routeCandidates, routes, mobileAlerts, assignments] = await Promise.all([
     prisma.carrier.findMany({
       where: { tenantId },
       orderBy: [{ name: "asc" }]
@@ -669,6 +868,10 @@ export async function getRoutesData(routeIssue?: string) {
     prisma.mobileAlert.findMany({
       where: { tenantId },
       orderBy: [{ createdAt: "desc" }]
+    }),
+    prisma.routeAssignment.findMany({
+      where: { tenantId },
+      orderBy: [{ updatedAt: "desc" }]
     })
   ]);
 
@@ -679,6 +882,7 @@ export async function getRoutesData(routeIssue?: string) {
     routeCandidates,
     routes,
     mobileAlerts,
+    assignments,
     emailConfigured: emailTransportConfigured(),
     routeIssue
   };
@@ -717,8 +921,8 @@ export async function getRouteManifestData(routeRunId: string) {
     return null;
   }
 
-  const totalPallets = routeRun.stops.reduce((sum, stop) => sum + stop.shipment.pallets, 0);
-  const totalCartons = routeRun.stops.reduce((sum, stop) => sum + stop.shipment.cartons, 0);
+  const totalPallets = routeRun.stops.reduce((sum: number, stop: (typeof routeRun.stops)[number]) => sum + stop.shipment.pallets, 0);
+  const totalCartons = routeRun.stops.reduce((sum: number, stop: (typeof routeRun.stops)[number]) => sum + stop.shipment.cartons, 0);
   const totalStops = routeRun.stops.length;
   const totalTrucks = routeRun.truckCount;
 
@@ -733,8 +937,94 @@ export async function getRouteManifestData(routeRunId: string) {
   };
 }
 
+export async function getAssignmentsData() {
+  const { tenantId, tenant, user, role, membership } = await getTenantScope();
+
+  const assignmentWhere = getAssignmentWhereForMembership({
+    tenantId,
+    role,
+    membershipCarrierId: membership.carrierId,
+    membershipDriverId: membership.driverId
+  });
+
+  const [assignments, carriers, drivers] = await Promise.all([
+    prisma.routeAssignment.findMany({
+      where: assignmentWhere,
+      include: {
+        carrier: true,
+        driver: {
+          include: {
+            carrier: true
+          }
+        },
+        assignedBy: true,
+        respondedBy: true,
+        locationPings: {
+          orderBy: [{ capturedAt: "desc" }],
+          take: 3
+        },
+        routeRun: {
+          include: {
+            stops: {
+              orderBy: [{ stopNumber: "asc" }],
+              include: {
+                shipment: {
+                  include: {
+                    customer: true,
+                    bol: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: [{ offeredAt: "desc" }]
+    }),
+    prisma.carrier.findMany({
+      where:
+        isCarrierRole(role)
+          ? { id: membership.carrierId ?? "__no-carrier__" }
+          : { tenantId },
+      orderBy: [{ name: "asc" }]
+    }),
+    prisma.driver.findMany({
+      where:
+        role === "DRIVER"
+          ? { id: membership.driverId ?? "__no-driver__" }
+          : isCarrierRole(role)
+            ? { tenantId, carrierId: membership.carrierId ?? "__no-carrier__" }
+            : { tenantId },
+      include: {
+        carrier: true
+      },
+      orderBy: [{ fullName: "asc" }]
+    })
+  ]);
+
+  return {
+    context: { tenant, user, role, membership },
+    assignments,
+    carriers,
+    drivers,
+    canRespond: isCarrierRole(role),
+    canAssignDriver: isInternalOperationsRole(role) || isCarrierRole(role),
+    canTrack:
+      isInternalOperationsRole(role) ||
+      isCarrierRole(role) ||
+      role === "DRIVER"
+  };
+}
+
 export async function getDeliveriesData() {
-  const { tenantId, tenant, user } = await getTenantScope();
+  const { tenantId, tenant, user, role, membership } = await getTenantScope();
+
+  const routeRunScope =
+    role === "DRIVER"
+      ? { driverId: membership.driverId ?? "__no-driver__" }
+      : isCarrierRole(role)
+        ? { carrierId: membership.carrierId ?? "__no-carrier__" }
+        : {};
 
   const [activeStops, deliveryEvents] = await Promise.all([
     prisma.routeStop.findMany({
@@ -742,7 +1032,8 @@ export async function getDeliveriesData() {
         tenantId,
         status: {
           in: ["PUBLISHED", "IN_TRANSIT"]
-        }
+        },
+        routeRun: routeRunScope
       },
       include: {
         routeRun: {
@@ -762,7 +1053,17 @@ export async function getDeliveriesData() {
       orderBy: [{ updatedAt: "desc" }, { stopNumber: "asc" }]
     }),
     prisma.deliveryEvent.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(role === "DRIVER" ? { driverId: membership.driverId ?? "__no-driver__" } : {}),
+        ...(isCarrierRole(role)
+          ? {
+              shipment: {
+                carrierId: membership.carrierId ?? "__no-carrier__"
+              }
+            }
+          : {})
+      },
       include: {
         driver: true,
         shipment: {
@@ -1054,8 +1355,15 @@ export async function generateBillOfLading(input: unknown) {
   }
 
   const primaryShipment = shipments[0];
-  const normalizedSelection = shipments.map((shipment) => shipment.batchId).sort();
-  const existingGroupedNumbers = [...new Set(shipments.map((shipment) => shipment.bol?.bolNumber).filter(Boolean))];
+  type GeneratedBolShipment = (typeof shipments)[number];
+  const normalizedSelection = shipments.map((shipment: GeneratedBolShipment) => shipment.batchId).sort();
+  const existingGroupedNumbers = [
+    ...new Set(
+      shipments
+        .map((shipment: GeneratedBolShipment) => shipment.bol?.bolNumber)
+        .filter((value: string | null | undefined): value is string => Boolean(value))
+    )
+  ];
   const reusableSingleShipmentBolNumber =
     shipments.length === 1 ? shipments[0].bol?.bolNumber ?? null : null;
 
@@ -1071,7 +1379,7 @@ export async function generateBillOfLading(input: unknown) {
       reusableShipmentId: shipments.length === 1 ? primaryShipment.id : undefined
     }));
 
-  const shipmentIds = shipments.map((shipment) => shipment.id);
+  const shipmentIds = shipments.map((shipment: GeneratedBolShipment) => shipment.id);
 
   await prisma.$transaction([
     prisma.billOfLading.deleteMany({
@@ -1083,7 +1391,7 @@ export async function generateBillOfLading(input: unknown) {
       }
     }),
     prisma.billOfLading.createMany({
-      data: shipments.map((shipment) => ({
+      data: shipments.map((shipment: GeneratedBolShipment) => ({
         tenantId,
         shipmentId: shipment.id,
         bolNumber,
@@ -1106,7 +1414,7 @@ export async function generateBillOfLading(input: unknown) {
 
   return {
     bolNumber,
-    batchIds: shipments.map((shipment) => shipment.batchId)
+    batchIds: shipments.map((shipment: GeneratedBolShipment) => shipment.batchId)
   };
 }
 
@@ -1178,7 +1486,7 @@ export async function createRouteRun(input: unknown) {
   await prisma.shipment.updateMany({
     where: {
       tenantId,
-      id: { in: shipments.map((shipment) => shipment.id) }
+        id: { in: shipments.map((shipment: (typeof shipments)[number]) => shipment.id) }
     },
     data: {
       status: "ROUTED",
@@ -1200,6 +1508,7 @@ export async function publishRouteRun(input: unknown) {
       tenantId
     },
     include: {
+      carrier: true,
       driver: true,
       stops: {
         include: {
@@ -1227,7 +1536,7 @@ export async function publishRouteRun(input: unknown) {
   await prisma.shipment.updateMany({
     where: {
       tenantId,
-      id: { in: route.stops.map((stop) => stop.shipmentId) }
+        id: { in: route.stops.map((stop: (typeof route.stops)[number]) => stop.shipmentId) }
     },
     data: {
       status: "PUBLISHED"
@@ -1244,18 +1553,91 @@ export async function publishRouteRun(input: unknown) {
     }
   });
 
+  let routeAssignmentId: string | undefined;
+
+  if (route.carrierId && route.carrier) {
+    const activeStatuses = ["OFFERED", "ACCEPTED", "DRIVER_ASSIGNED", "IN_TRANSIT"] as const;
+
+    await prisma.routeAssignment.updateMany({
+      where: {
+        tenantId,
+        routeRunId: route.id,
+        carrierId: {
+          not: route.carrierId
+        },
+        status: {
+          in: [...activeStatuses]
+        }
+      },
+      data: {
+        status: "REASSIGNED",
+        cancelledAt: publishedAt
+      }
+    });
+
+    const existingAssignment = await prisma.routeAssignment.findFirst({
+      where: {
+        tenantId,
+        routeRunId: route.id,
+        carrierId: route.carrierId
+      },
+      orderBy: [{ updatedAt: "desc" }]
+    });
+
+    const routeAssignment =
+      existingAssignment
+        ? await prisma.routeAssignment.update({
+            where: { id: existingAssignment.id },
+            data: {
+              driverId: route.driverId,
+              status:
+                route.driverId
+                  ? "DRIVER_ASSIGNED"
+                  : existingAssignment.status === "ACCEPTED"
+                    ? "ACCEPTED"
+                    : "OFFERED",
+              driverAssignedAt: route.driverId ? publishedAt : existingAssignment.driverAssignedAt,
+              notes: existingAssignment.notes ?? `Published from truck run ${route.routeName}`
+            }
+          })
+        : await prisma.routeAssignment.create({
+            data: {
+              tenantId,
+              routeRunId: route.id,
+              carrierId: route.carrierId,
+              driverId: route.driverId,
+              assignedByUserId: user.id,
+              trackingNumber: await createUniqueRouteTrackingNumber({
+                tenantId,
+                tenantSlug: tenant.slug,
+                carrierCode: route.carrier.carrierCode,
+                routeDate: route.routeDate,
+                routeRunId: route.id
+              }),
+              status: route.driverId ? "DRIVER_ASSIGNED" : "OFFERED",
+              acceptedAt: route.driverId ? publishedAt : null,
+              driverAssignedAt: route.driverId ? publishedAt : null,
+              notes: `Published from truck run ${route.routeName}`
+            }
+          });
+
+    routeAssignmentId = routeAssignment.id;
+  }
+
   if (route.driverId) {
     await prisma.mobileAlert.create({
       data: {
         tenantId,
         routeRunId: route.id,
         driverId: route.driverId,
+        routeAssignmentId,
         title: `${tenant.name} route assigned`,
         body: `${route.routeName} has ${route.stops.length} stop${route.stops.length === 1 ? "" : "s"} ready for driver review.`,
         payloadJson: JSON.stringify({
+          routeAssignmentId,
           routeRunId: route.id,
           routeName: route.routeName,
-          batchIds: route.stops.map((stop) => stop.shipment.batchId),
+          batchIds: route.stops.map((stop: (typeof route.stops)[number]) => stop.shipment.batchId),
           publishedBy: user.email
         }),
         status: "PENDING"
@@ -1264,6 +1646,172 @@ export async function publishRouteRun(input: unknown) {
   }
 
   return updatedRoute;
+}
+
+export async function respondToRouteAssignment(input: unknown) {
+  const data = routeAssignmentRespondSchema.parse(input);
+  const { tenantId, user, role, membership } = await getTenantScope();
+
+  if (!isCarrierRole(role) && !isInternalOperationsRole(role)) {
+    return null;
+  }
+
+  const assignment = await prisma.routeAssignment.findFirst({
+    where: {
+      id: data.routeAssignmentId,
+      ...getAssignmentWhereForMembership({
+        tenantId,
+        role,
+        membershipCarrierId: membership.carrierId,
+        membershipDriverId: membership.driverId
+      })
+    }
+  });
+
+  if (!assignment) {
+    return null;
+  }
+
+  const now = new Date();
+  return prisma.routeAssignment.update({
+    where: { id: assignment.id },
+    data: {
+      status: data.status,
+      respondedByUserId: user.id,
+      acceptedAt: data.status === "ACCEPTED" ? (assignment.acceptedAt ?? now) : assignment.acceptedAt,
+      declinedAt: data.status === "DECLINED" ? now : null,
+      declineReason: data.status === "DECLINED" ? data.declineReason : null
+    }
+  });
+}
+
+export async function assignDriverToRouteAssignment(input: unknown) {
+  const data = routeAssignmentDriverSchema.parse(input);
+  const { tenantId, user, role, membership } = await getTenantScope();
+
+  if (!isCarrierRole(role) && !isInternalOperationsRole(role)) {
+    return null;
+  }
+
+  const assignment = await prisma.routeAssignment.findFirst({
+    where: {
+      id: data.routeAssignmentId,
+      tenantId,
+      ...(isCarrierRole(role) ? { carrierId: membership.carrierId ?? "__no-carrier__" } : {})
+    },
+    include: {
+      routeRun: {
+        include: {
+          stops: {
+            include: {
+              shipment: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!assignment) {
+    return null;
+  }
+
+  const driver = await prisma.driver.findUnique({
+    where: {
+      tenantId_driverCode: {
+        tenantId,
+        driverCode: data.driverCode
+      }
+    }
+  });
+
+  if (!driver || (assignment.carrierId && driver.carrierId !== assignment.carrierId)) {
+    return null;
+  }
+
+  const now = new Date();
+
+  const updatedAssignment = await prisma.routeAssignment.update({
+    where: { id: assignment.id },
+    data: {
+      driverId: driver.id,
+      status: assignment.status === "IN_TRANSIT" ? "IN_TRANSIT" : "DRIVER_ASSIGNED",
+      respondedByUserId: user.id,
+      acceptedAt: assignment.acceptedAt ?? now,
+      driverAssignedAt: now
+    }
+  });
+
+  await prisma.routeRun.update({
+    where: { id: assignment.routeRunId },
+    data: {
+      driverId: driver.id,
+      mobileSyncAt: now
+    }
+  });
+
+  await prisma.mobileAlert.create({
+    data: {
+      tenantId,
+      routeRunId: assignment.routeRunId,
+      driverId: driver.id,
+      routeAssignmentId: assignment.id,
+      title: "Load assigned to driver",
+      body: `${assignment.routeRun.routeName} is ready for driver dispatch review.`,
+      payloadJson: JSON.stringify({
+        routeAssignmentId: assignment.id,
+        routeRunId: assignment.routeRunId,
+        trackingNumber: assignment.trackingNumber,
+        batchIds: assignment.routeRun.stops.map((stop: (typeof assignment.routeRun.stops)[number]) => stop.shipment.batchId),
+        assignedBy: user.email
+      }),
+      status: "PENDING"
+    }
+  });
+
+  return updatedAssignment;
+}
+
+export async function recordDriverLocationPing(input: unknown) {
+  const data = driverLocationPingCreateSchema.parse(input);
+  const { tenantId, role, membership } = await getTenantScope();
+
+  const assignment = await prisma.routeAssignment.findFirst({
+    where: {
+      id: data.routeAssignmentId,
+      tenantId,
+      ...(role === "DRIVER" ? { driverId: membership.driverId ?? "__no-driver__" } : {})
+    }
+  });
+
+  if (!assignment?.driverId) {
+    return null;
+  }
+
+  const ping = await prisma.driverLocationPing.create({
+    data: {
+      tenantId,
+      routeAssignmentId: assignment.id,
+      driverId: assignment.driverId,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      accuracyMeters: data.accuracyMeters,
+      speedMph: data.speedMph,
+      headingDegrees: data.headingDegrees,
+      batteryLevel: data.batteryLevel
+    }
+  });
+
+  await prisma.routeAssignment.update({
+    where: { id: assignment.id },
+    data: {
+      lastLocationAt: ping.capturedAt,
+      status: assignment.status === "COMPLETED" ? assignment.status : "IN_TRANSIT",
+      startedAt: assignment.startedAt ?? ping.capturedAt
+    }
+  });
+
+  return ping;
 }
 
 export async function queueLabelJob(input: unknown) {
@@ -1357,13 +1905,13 @@ export async function sendBolEmail(input: unknown) {
     return null;
   }
 
-  const shipments = bills.map((bill) => bill.shipment);
+  const shipments = bills.map((bill: (typeof bills)[number]) => bill.shipment);
   const primaryShipment = shipments[0];
   const subject = `${tenant.name} BOL ${data.bolNumber}`;
   const htmlBody = buildBolEmailHtml({
     tenantName: tenant.name,
     bolNumber: data.bolNumber,
-    batchIds: shipments.map((shipment) => shipment.batchId),
+    batchIds: shipments.map((shipment: (typeof shipments)[number]) => shipment.batchId),
     customerName: primaryShipment.customer.name,
     carrierName: primaryShipment.carrier?.name ?? bills[0]?.carrierName
   });
@@ -1429,7 +1977,7 @@ export async function sendRouteManifestEmail(input: unknown) {
     carrierName: routeRun.carrier?.name,
     driverName: routeRun.driver?.fullName,
     stopCount: routeRun.stops.length,
-    batchIds: routeRun.stops.map((stop) => stop.shipment.batchId),
+    batchIds: routeRun.stops.map((stop: (typeof routeRun.stops)[number]) => stop.shipment.batchId),
     manifestUrl
   });
 
@@ -1456,6 +2004,29 @@ export async function createUserAccount(input: unknown) {
         )?.id ?? tenantId
       : tenantId;
 
+  const [carrier, driver] = await Promise.all([
+    data.carrierCode
+      ? prisma.carrier.findUnique({
+          where: {
+            tenantId_carrierCode: {
+              tenantId: targetTenantId,
+              carrierCode: data.carrierCode
+            }
+          }
+        })
+      : Promise.resolve(null),
+    data.driverCode
+      ? prisma.driver.findUnique({
+          where: {
+            tenantId_driverCode: {
+              tenantId: targetTenantId,
+              driverCode: data.driverCode
+            }
+          }
+        })
+      : Promise.resolve(null)
+  ]);
+
   const user = await prisma.user.upsert({
     where: { email: data.email },
     update: {
@@ -1477,12 +2048,18 @@ export async function createUserAccount(input: unknown) {
       }
     },
     update: {
-      role: data.role
+      role: data.role,
+      carrierId: carrier?.id,
+      driverId: driver?.id,
+      isPortalAccess: isCarrierRole(data.role) || data.role === "DRIVER"
     },
     create: {
       tenantId: targetTenantId,
       userId: user.id,
-      role: data.role
+      role: data.role,
+      carrierId: carrier?.id,
+      driverId: driver?.id,
+      isPortalAccess: isCarrierRole(data.role) || data.role === "DRIVER"
     }
   });
 
@@ -1552,7 +2129,17 @@ export async function recordDeliveryEvent(input: unknown) {
     orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }]
   });
 
-  const driverId = routeStop?.routeRun.driverId ?? null;
+  const routeAssignment = routeStop
+    ? await prisma.routeAssignment.findFirst({
+        where: {
+          tenantId,
+          routeRunId: routeStop.routeRunId
+        },
+        orderBy: [{ updatedAt: "desc" }]
+      })
+    : null;
+
+  const driverId = routeAssignment?.driverId ?? routeStop?.routeRun.driverId ?? null;
   const eventAt = new Date();
   const routeStopStatus = routeStopStatusFromEvent(data.eventType);
   const shipmentStatus = shipmentStatusFromEvent(data.eventType);
@@ -1562,6 +2149,7 @@ export async function recordDeliveryEvent(input: unknown) {
       tenantId,
       shipmentId: shipment.id,
       routeStopId: routeStop?.id,
+      routeAssignmentId: routeAssignment?.id,
       driverId,
       eventType: data.eventType,
       eventAt,
@@ -1592,6 +2180,13 @@ export async function recordDeliveryEvent(input: unknown) {
     });
 
     await syncRouteRunStatus(routeStop.routeRunId);
+  }
+
+  if (routeAssignment) {
+    await syncRouteAssignmentStatus(routeAssignment.id, {
+      eventType: data.eventType,
+      eventAt
+    });
   }
 
   return deliveryEvent;

@@ -160,7 +160,7 @@ export function AppShell({
               <p className="dispatch-nav__section-title">{section.title}</p>
               <div className="dispatch-nav__section-items">
                 {section.items
-                  .filter((item) => !item.adminOnly || isAdmin)
+                  .filter((item) => (!item.adminOnly || isAdmin) && (!item.allowedRoles || item.allowedRoles.includes(roleKey)))
                   .map((item) => {
                   const active = pathname === item.href;
 

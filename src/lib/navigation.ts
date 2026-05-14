@@ -4,6 +4,7 @@ export interface DispatchNavigationItem {
   shortLabel: string;
   description: string;
   adminOnly?: boolean;
+  allowedRoles?: string[];
   icon:
     | "home"
     | "briefcase"
@@ -33,6 +34,16 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Main Screen",
         shortLabel: "MS",
         description: "Tenant dashboard and queue summary.",
+        allowedRoles: [
+          "PLATFORM_ADMIN",
+          "TENANT_ADMIN",
+          "DISPATCHER",
+          "WAREHOUSE",
+          "CUSTOMER_SERVICE",
+          "CARRIER_ADMIN",
+          "CARRIER_DISPATCHER",
+          "DRIVER"
+        ],
         icon: "home"
       },
       {
@@ -40,6 +51,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Packing Slip",
         shortLabel: "PS",
         description: "Enter packing slips and review shipment intake.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
         icon: "briefcase"
       },
       {
@@ -47,6 +59,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Carton Info",
         shortLabel: "CI",
         description: "Carton master, dimensions, and label source data.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
         icon: "boxes"
       },
       {
@@ -54,6 +67,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "BOL",
         shortLabel: "BL",
         description: "Batch lookup, BOL generation, and print staging.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
         icon: "file"
       },
       {
@@ -61,6 +75,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Customer",
         shortLabel: "CU",
         description: "Customer master data and lookup workflow.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
         icon: "customer"
       },
       {
@@ -68,6 +83,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Sales Rep",
         shortLabel: "SR",
         description: "Sales rep master data from the legacy app.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "CUSTOMER_SERVICE"],
         icon: "sales"
       },
       {
@@ -75,6 +91,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Carriers",
         shortLabel: "CR",
         description: "Carrier directory plus driver assignment.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
         icon: "carrier"
       },
       {
@@ -82,6 +99,22 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Truck Run",
         shortLabel: "TR",
         description: "Route planning, run sheets, and publish flow.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
+        icon: "route"
+      },
+      {
+        href: "/dispatch/assignments",
+        label: "Assignments",
+        shortLabel: "AS",
+        description: "Carrier acceptance, driver handoff, tracking number, and live route ownership.",
+        allowedRoles: [
+          "PLATFORM_ADMIN",
+          "TENANT_ADMIN",
+          "DISPATCHER",
+          "CARRIER_ADMIN",
+          "CARRIER_DISPATCHER",
+          "DRIVER"
+        ],
         icon: "route"
       },
       {
@@ -89,6 +122,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Print Label",
         shortLabel: "PL",
         description: "Carton and pallet label output queue.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
         icon: "printer"
       }
     ]
@@ -101,6 +135,14 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Delivered Orders",
         shortLabel: "DO",
         description: "Proof of delivery, exceptions, and route completion.",
+        allowedRoles: [
+          "PLATFORM_ADMIN",
+          "TENANT_ADMIN",
+          "DISPATCHER",
+          "CARRIER_ADMIN",
+          "CARRIER_DISPATCHER",
+          "DRIVER"
+        ],
         icon: "delivery"
       }
     ]
@@ -113,6 +155,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Search",
         shortLabel: "SE",
         description: "Cross-record lookup for customers, batches, and orders.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
         icon: "search"
       },
       {
@@ -120,6 +163,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Freight Tools",
         shortLabel: "FT",
         description: "Density, cube, and freight class calculations.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
         icon: "calculator"
       }
     ]
@@ -132,6 +176,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "User Manage",
         shortLabel: "UM",
         description: "User roles, approvals, and tenant membership.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN"],
         icon: "customer"
       },
       {
@@ -139,6 +184,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Issue Inbox",
         shortLabel: "II",
         description: "Admin-only bug reports and workflow issues stored in the database.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN"],
         icon: "file",
         adminOnly: true
       },
@@ -147,6 +193,7 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Company Manage",
         shortLabel: "CM",
         description: "Company records and warehouse setup.",
+        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN"],
         icon: "briefcase"
       }
     ]

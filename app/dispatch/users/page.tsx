@@ -4,14 +4,63 @@ import { SimpleTable } from "@/components/simple-table";
 import { createUserAction } from "@/lib/server/dispatch-actions";
 import { getUsersData } from "@/lib/server/dispatch-service";
 
+interface UserMembershipRecord {
+  user: {
+    fullName: string;
+    email: string;
+  };
+  tenant: {
+    name: string;
+  };
+  role: string;
+  carrier?: {
+    carrierCode: string;
+  } | null;
+  driver?: {
+    driverCode: string;
+  } | null;
+  isPortalAccess: boolean;
+  createdAt: Date;
+}
+
+interface TenantRecord {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+interface UserCarrierRecord {
+  id: string;
+  carrierCode: string;
+  name: string;
+}
+
+interface UserDriverRecord {
+  id: string;
+  driverCode: string;
+  fullName: string;
+}
+
 export default async function UsersPage() {
-  const { context, memberships, tenants } = await getUsersData();
+  const usersData = await getUsersData();
+  const context = usersData.context as {
+    tenant: {
+      slug: string;
+    };
+  };
+  const memberships = usersData.memberships as UserMembershipRecord[];
+  const tenants = usersData.tenants as TenantRecord[];
+  const carriers = usersData.carriers as UserCarrierRecord[];
+  const drivers = usersData.drivers as UserDriverRecord[];
 
   const rows = memberships.map((membership) => ({
     user: membership.user.fullName,
     email: membership.user.email,
     company: membership.tenant.name,
     role: membership.role.replaceAll("_", " "),
+    carrier: membership.carrier?.carrierCode ?? "-",
+    driver: membership.driver?.driverCode ?? "-",
+    portal: membership.isPortalAccess ? "Portal" : "Internal",
     created: membership.createdAt.toISOString().slice(0, 10)
   }));
 
@@ -20,7 +69,7 @@ export default async function UsersPage() {
       <PageHeader
         eyebrow="User Manage"
         title="Users List"
-        description="This brings back the admin-level user management view so we can compare the rebuild from the same vantage point as the old site."
+        description="This now handles both internal tenant users and carrier-portal accounts, including dispatcher, carrier admin, carrier dispatcher, and driver access."
       />
 
       <div className="legacy-page-grid">
@@ -55,8 +104,18 @@ export default async function UsersPage() {
                 <option value="DISPATCHER">Dispatcher</option>
                 <option value="WAREHOUSE">Warehouse</option>
                 <option value="CUSTOMER_SERVICE">Customer Service</option>
+                <option value="CARRIER_ADMIN">Carrier Admin</option>
+                <option value="CARRIER_DISPATCHER">Carrier Dispatcher</option>
                 <option value="DRIVER">Driver</option>
               </select>
+            </label>
+            <label className="field">
+              <span>Carrier Code</span>
+              <input name="carrierCode" list="user-carriers" placeholder="OLJ" />
+            </label>
+            <label className="field">
+              <span>Driver Code</span>
+              <input name="driverCode" list="user-drivers" placeholder="LUIS" />
             </label>
             <label className="field field--wide">
               <span>Password</span>
@@ -67,6 +126,20 @@ export default async function UsersPage() {
                 Submit Form
               </button>
             </div>
+            <datalist id="user-carriers">
+              {carriers.map((carrier) => (
+                <option key={carrier.id} value={carrier.carrierCode}>
+                  {carrier.name}
+                </option>
+              ))}
+            </datalist>
+            <datalist id="user-drivers">
+              {drivers.map((driver) => (
+                <option key={driver.id} value={driver.driverCode}>
+                  {driver.fullName}
+                </option>
+              ))}
+            </datalist>
           </form>
         </SectionCard>
 
@@ -80,6 +153,9 @@ export default async function UsersPage() {
               { key: "email", label: "Email" },
               { key: "company", label: "Company" },
               { key: "role", label: "Role" },
+              { key: "carrier", label: "Carrier" },
+              { key: "driver", label: "Driver" },
+              { key: "portal", label: "Access" },
               { key: "created", label: "Created" }
             ]}
             rows={rows}
