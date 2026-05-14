@@ -99,7 +99,14 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         label: "Truck Run",
         shortLabel: "TR",
         description: "Route planning, run sheets, and publish flow.",
-        allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
+        allowedRoles: [
+          "PLATFORM_ADMIN",
+          "TENANT_ADMIN",
+          "DISPATCHER",
+          "CARRIER_ADMIN",
+          "CARRIER_DISPATCHER",
+          "DRIVER"
+        ],
         icon: "route"
       },
       {

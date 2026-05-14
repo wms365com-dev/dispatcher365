@@ -235,6 +235,10 @@ export const routeAssignmentDriverSchema = z.object({
   driverCode: z.string().trim().min(1).transform((value) => value.toUpperCase())
 });
 
+export const routeAssignmentStartSchema = z.object({
+  routeAssignmentId: z.string().trim().min(1)
+});
+
 export const driverLocationPingCreateSchema = z.object({
   routeAssignmentId: z.string().trim().min(1),
   latitude: z.coerce.number().min(-90).max(90),

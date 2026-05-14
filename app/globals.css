@@ -741,6 +741,39 @@ ul {
   gap: 14px;
 }
 
+.workspace-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.workspace-link {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: #fbfdff;
+  color: #304657;
+  text-decoration: none;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.workspace-link strong {
+  font-size: 0.92rem;
+}
+
+.workspace-link small {
+  color: #607382;
+  line-height: 1.35;
+}
+
+.workspace-link:hover,
+.workspace-link--active {
+  border-color: #31c2ce;
+  background: #f3fcfe;
+  color: #193f4e;
+}
+
 .route-card {
   padding: 14px;
   border: 1px solid var(--line);

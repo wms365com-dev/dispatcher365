@@ -25,13 +25,18 @@ Source of truth used for this checklist:
 - `[Done]` Legacy-style BOL print preview
 - `[Partial]` BOL queue refresh and status-change parity
 - `[Partial]` Truck Run create/list/manifest flow
+- `[Partial]` Truck Run execution side screens:
+  - `Assign`
+  - `Jobs`
+  - `History`
+  - `Delivered history`
 - `[Partial]` Delivered Orders / delivery event history
 - `[Partial]` Print Label workflow
 
 ## Exact old-site features still missing
 
 - `[Missing]` `BOL -> CHANGE ALL TO SHIPPED` action from the staged BOL screen
-- `[Missing]` Full old `Truck Run` side screens split the way the legacy app did them:
+- `[Partial]` Old `Truck Run` side screens are rebuilt, but still need one more live parity pass for table density, actions, and role polish:
   - `Assign`
   - `Jobs`
   - `History`
@@ -59,14 +64,15 @@ Source of truth used for this checklist:
 
 ## Carrier / trucker / mobile expansion
 
-- `[Active]` Carrier portal roles:
+- `[Done]` Carrier portal roles:
   - `CARRIER_ADMIN`
   - `CARRIER_DISPATCHER`
-- `[Active]` Route assignment records with tracking numbers
-- `[Active]` Carrier accept / decline flow
-- `[Active]` Carrier assign-to-driver flow
-- `[Active]` Driver location ping API foundation
-- `[Active]` Assignment desk screen
+- `[Done]` Route assignment records with tracking numbers
+- `[Done]` Carrier accept / decline flow
+- `[Done]` Carrier assign-to-driver flow
+- `[Done]` Driver location ping API foundation
+- `[Done]` Assignment desk screen
+- `[Partial]` Truck Run execution screens now sit on top of the assignment model, but still need another live parity pass with the old site
 - `[Missing]` Public carrier sign-up / invite / approval flow
 - `[Missing]` Driver mobile app
 - `[Missing]` Real push notifications for offered loads and driver alerts
@@ -86,7 +92,7 @@ Source of truth used for this checklist:
 - `[Missing]` Compact nav mode for repeat operators
 - `[Partial]` Packing Slip is much better, but still needs one more speed pass against the old form
 - `[Partial]` BOL staging now matches the old interaction much better, but still needs the missing status action noted above
-- `[Partial]` Truck Run needs a more direct “build from selected BOL-created batches” rhythm
+- `[Partial]` Truck Run needs a more direct `build from selected BOL-created batches` rhythm
 - `[Partial]` Label module needs to feel print-first rather than queue-first
 
 ## Production-hardening and admin operations
@@ -99,8 +105,8 @@ Source of truth used for this checklist:
 
 ## Current highest-priority build sequence
 
-1. Finish and deploy the `Truck Run + Assignments` slice.
-2. Add the missing `BOL -> CHANGE ALL TO SHIPPED` parity action.
-3. Rework `Print Label` into the old direct-print workflow.
-4. Rebuild import/export.
-5. Finish carrier portal onboarding and driver mobile execution.
+1. Add the missing `BOL -> CHANGE ALL TO SHIPPED` parity action.
+2. Rework `Print Label` into the old direct-print workflow.
+3. Rebuild import/export.
+4. Finish carrier portal onboarding and driver mobile execution.
+5. Run another old-vs-new live parity pass across the Truck Run execution screens.

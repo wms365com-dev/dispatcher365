@@ -1,5 +1,6 @@
 "use server";
 
+import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -23,6 +24,7 @@ import {
   respondToRouteAssignment,
   sendBolEmail,
   sendRouteManifestEmail,
+  startRouteAssignment,
   updateIssueReport
 } from "@/lib/server/dispatch-service";
 
@@ -113,6 +115,8 @@ export async function createRouteRunAction(formData: FormData) {
 
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/routes");
+  revalidatePath("/dispatch/routes/assign");
+  revalidatePath("/dispatch/routes/jobs");
 
   if (!routeRun) {
     redirect("/dispatch/routes?routeIssue=no-eligible-batches");
@@ -126,6 +130,9 @@ export async function publishRouteRunAction(formData: FormData) {
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/routes");
   revalidatePath("/dispatch/assignments");
+  revalidatePath("/dispatch/routes/assign");
+  revalidatePath("/dispatch/routes/jobs");
+  revalidatePath("/dispatch/routes/history");
   redirect("/dispatch/routes");
 }
 
@@ -133,7 +140,10 @@ export async function respondToRouteAssignmentAction(formData: FormData) {
   await respondToRouteAssignment(toFormObject(formData));
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/assignments");
-  redirect("/dispatch/assignments");
+  revalidatePath("/dispatch/routes/assign");
+  revalidatePath("/dispatch/routes/jobs");
+  revalidatePath("/dispatch/routes/history");
+  redirect(String(formData.get("returnTo") ?? "/dispatch/assignments") as Route);
 }
 
 export async function assignRouteAssignmentDriverAction(formData: FormData) {
@@ -141,7 +151,21 @@ export async function assignRouteAssignmentDriverAction(formData: FormData) {
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/routes");
   revalidatePath("/dispatch/assignments");
-  redirect("/dispatch/assignments");
+  revalidatePath("/dispatch/routes/assign");
+  revalidatePath("/dispatch/routes/jobs");
+  redirect(String(formData.get("returnTo") ?? "/dispatch/assignments") as Route);
+}
+
+export async function startRouteAssignmentAction(formData: FormData) {
+  const payload = toFormObject(formData);
+  await startRouteAssignment(payload);
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/routes");
+  revalidatePath("/dispatch/assignments");
+  revalidatePath("/dispatch/routes/jobs");
+  revalidatePath("/dispatch/routes/history");
+  revalidatePath("/dispatch/deliveries");
+  redirect(String(formData.get("returnTo") ?? "/dispatch/routes/jobs") as Route);
 }
 
 export async function recordDriverLocationPingAction(formData: FormData) {
@@ -165,6 +189,8 @@ export async function recordDeliveryEventAction(formData: FormData) {
   revalidatePath("/dispatch/routes");
   revalidatePath("/dispatch/packing-slips");
   revalidatePath("/dispatch/deliveries");
+  revalidatePath("/dispatch/routes/history");
+  revalidatePath("/dispatch/routes/delivered-history");
   redirect("/dispatch/deliveries");
 }
 

@@ -14,6 +14,7 @@ import {
   productCreateSchema,
   routeAssignmentDriverSchema,
   routeAssignmentRespondSchema,
+  routeAssignmentStartSchema,
   routeCreateSchema,
   routePublishSchema,
   salesRepCreateSchema,
@@ -824,31 +825,63 @@ export async function getIssueReportsData() {
 }
 
 export async function getRoutesData(routeIssue?: string) {
-  const { tenantId, tenant, user } = await getTenantScope();
+  const { tenantId, tenant, user, role, membership } = await getTenantScope();
+
+  const routeRunWhere =
+    role === "DRIVER"
+      ? {
+          tenantId,
+          driverId: membership.driverId ?? "__no-driver__"
+        }
+      : isCarrierRole(role)
+        ? {
+            tenantId,
+            carrierId: membership.carrierId ?? "__no-carrier__"
+          }
+        : {
+            tenantId
+          };
+
+  const assignmentWhere = getAssignmentWhereForMembership({
+    tenantId,
+    role,
+    membershipCarrierId: membership.carrierId,
+    membershipDriverId: membership.driverId
+  });
 
   const [carriers, drivers, routeCandidates, routes, mobileAlerts, assignments] = await Promise.all([
     prisma.carrier.findMany({
-      where: { tenantId },
+      where:
+        isCarrierRole(role)
+          ? { id: membership.carrierId ?? "__no-carrier__" }
+          : { tenantId },
       orderBy: [{ name: "asc" }]
     }),
     prisma.driver.findMany({
-      where: { tenantId },
+      where:
+        role === "DRIVER"
+          ? { id: membership.driverId ?? "__no-driver__" }
+          : isCarrierRole(role)
+            ? { tenantId, carrierId: membership.carrierId ?? "__no-carrier__" }
+            : { tenantId },
       include: { carrier: true },
       orderBy: [{ fullName: "asc" }]
     }),
-    prisma.shipment.findMany({
-      where: {
-        tenantId,
-        status: "BOL_CREATED"
-      },
-      include: {
-        customer: true,
-        carrier: true
-      },
-      orderBy: [{ batchId: "asc" }]
-    }),
+    isInternalOperationsRole(role)
+      ? prisma.shipment.findMany({
+          where: {
+            tenantId,
+            status: "BOL_CREATED"
+          },
+          include: {
+            customer: true,
+            carrier: true
+          },
+          orderBy: [{ batchId: "asc" }]
+        })
+      : Promise.resolve([]),
     prisma.routeRun.findMany({
-      where: { tenantId },
+      where: routeRunWhere,
       include: {
         carrier: true,
         driver: true,
@@ -866,17 +899,20 @@ export async function getRoutesData(routeIssue?: string) {
       orderBy: [{ routeDate: "desc" }, { createdAt: "desc" }]
     }),
     prisma.mobileAlert.findMany({
-      where: { tenantId },
+      where: {
+        tenantId,
+        ...(role === "DRIVER" ? { driverId: membership.driverId ?? "__no-driver__" } : {})
+      },
       orderBy: [{ createdAt: "desc" }]
     }),
     prisma.routeAssignment.findMany({
-      where: { tenantId },
+      where: assignmentWhere,
       orderBy: [{ updatedAt: "desc" }]
     })
   ]);
 
   return {
-    context: { tenant, user },
+    context: { tenant, user, role, membership },
     carriers,
     drivers,
     routeCandidates,
@@ -1016,6 +1052,85 @@ export async function getAssignmentsData() {
   };
 }
 
+export async function startRouteAssignment(input: unknown) {
+  const data = routeAssignmentStartSchema.parse(input);
+  const { tenantId, role, membership } = await getTenantScope();
+
+  const assignment = await prisma.routeAssignment.findFirst({
+    where: {
+      id: data.routeAssignmentId,
+      ...getAssignmentWhereForMembership({
+        tenantId,
+        role,
+        membershipCarrierId: membership.carrierId,
+        membershipDriverId: membership.driverId
+      })
+    },
+    include: {
+      routeRun: {
+        include: {
+          stops: true
+        }
+      }
+    }
+  });
+
+  if (!assignment) {
+    return null;
+  }
+
+  const now = new Date();
+  const activeStopIds = assignment.routeRun.stops
+    .filter((stop: (typeof assignment.routeRun.stops)[number]) => stop.status === "PUBLISHED" || stop.status === "PLANNED")
+    .map((stop: (typeof assignment.routeRun.stops)[number]) => stop.id);
+  const shipmentIds = assignment.routeRun.stops.map(
+    (stop: (typeof assignment.routeRun.stops)[number]) => stop.shipmentId
+  );
+
+  const updatedAssignment = await prisma.routeAssignment.update({
+    where: { id: assignment.id },
+    data: {
+      status: "IN_TRANSIT",
+      startedAt: assignment.startedAt ?? now,
+      acceptedAt: assignment.acceptedAt ?? now
+    }
+  });
+
+  await prisma.routeRun.update({
+    where: { id: assignment.routeRunId },
+    data: {
+      status: "IN_TRANSIT",
+      mobileSyncAt: now
+    }
+  });
+
+  if (activeStopIds.length) {
+    await prisma.routeStop.updateMany({
+      where: {
+        id: { in: activeStopIds }
+      },
+      data: {
+        status: "IN_TRANSIT"
+      }
+    });
+  }
+
+  if (shipmentIds.length) {
+    await prisma.shipment.updateMany({
+      where: {
+        id: { in: shipmentIds }
+      },
+      data: {
+        status: "IN_TRANSIT"
+      }
+    });
+  }
+
+  await syncRouteRunStatus(assignment.routeRunId);
+
+  return updatedAssignment;
+}
+
 export async function getDeliveriesData() {
   const { tenantId, tenant, user, role, membership } = await getTenantScope();
 
@@ -1071,6 +1186,11 @@ export async function getDeliveriesData() {
             customer: true
           }
         },
+        routeAssignment: {
+          include: {
+            carrier: true
+          }
+        },
         routeStop: {
           include: {
             routeRun: true
@@ -1083,7 +1203,7 @@ export async function getDeliveriesData() {
   ]);
 
   return {
-    context: { tenant, user },
+    context: { tenant, user, role, membership },
     activeStops,
     deliveryEvents
   };
