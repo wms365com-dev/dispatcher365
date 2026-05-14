@@ -347,6 +347,7 @@ model Shipment {
   salesOrder     String?
   salesperson    String?
   status         ShipmentStatus  @default(DRAFT)
+  legacyStatusLabel String?
   routedDate     DateTime?
   shipDate       DateTime?
   cancelDate     DateTime?

@@ -132,6 +132,11 @@ export const bolGenerateSchema = z.object({
   template: z.enum(["STANDARD", "RETURN", "CDN", "LA"]).default("STANDARD")
 });
 
+export const shipmentLegacyStatusUpdateSchema = z.object({
+  batchIds: z.string().trim().min(1),
+  legacyStatus: z.enum(["SHIPPED"])
+});
+
 export const routeCreateSchema = z.object({
   routeName: z.string().trim().min(3),
   routeDate: z.string().trim().min(1),

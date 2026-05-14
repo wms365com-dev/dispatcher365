@@ -25,6 +25,7 @@ import {
   sendBolEmail,
   sendRouteManifestEmail,
   startRouteAssignment,
+  updateBolShipmentLegacyStatus,
   updateIssueReport
 } from "@/lib/server/dispatch-service";
 
@@ -108,6 +109,23 @@ export async function generateBillOfLadingAction(formData: FormData) {
   }
 
   redirect(`/dispatch/bols?generated=${encodeURIComponent(bill.bolNumber)}&batchIds=${batchIds}`);
+}
+
+export async function changeBolSelectionToShippedAction(formData: FormData) {
+  const payload = {
+    batchIds: String(formData.get("batchIds") ?? ""),
+    legacyStatus: "SHIPPED" as const
+  };
+
+  await updateBolShipmentLegacyStatus(payload);
+
+  revalidatePath("/dispatch");
+  revalidatePath("/dispatch/packing-slips");
+  revalidatePath("/dispatch/bols");
+  revalidatePath("/dispatch/routes");
+
+  const batchIds = encodeURIComponent(payload.batchIds);
+  redirect(`/dispatch/bols?batchIds=${batchIds}&bulkStatus=shipped`);
 }
 
 export async function createRouteRunAction(formData: FormData) {

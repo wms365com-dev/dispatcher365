@@ -51,6 +51,7 @@ interface PackingShipment {
   routedDate?: Date | null;
   salesperson?: string | null;
   status: string;
+  legacyStatusLabel?: string | null;
   customer: {
     customerCode: string;
   };
@@ -80,7 +81,7 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
     cancelDate: formatDate(shipment.cancelDate),
     salesPerson: shipment.salesperson ?? "-",
     dateRevRouting: formatDate(shipment.routeDeskDate ?? shipment.routedDate),
-    status: <StatusPill status={shipment.status} />
+    status: <StatusPill status={shipment.legacyStatusLabel ?? shipment.status} />
   }));
 
   return (

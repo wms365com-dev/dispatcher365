@@ -18,6 +18,7 @@ import {
   routeCreateSchema,
   routePublishSchema,
   salesRepCreateSchema,
+  shipmentLegacyStatusUpdateSchema,
   shipmentCreateSchema,
   userCreateSchema
 } from "@/lib/validators";
@@ -80,6 +81,15 @@ function normalizeStatusLabel(value: string) {
     .toLowerCase()
     .replace(/_/g, " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function deliveryLegacyStatusLabel(eventType: string) {
+  switch (eventType) {
+    case "PAYMENT_COLLECTED":
+      return "DELIVERED";
+    default:
+      return eventType.replaceAll("_", " ");
+  }
 }
 
 function getAppBaseUrl() {
@@ -1121,7 +1131,8 @@ export async function startRouteAssignment(input: unknown) {
         id: { in: shipmentIds }
       },
       data: {
-        status: "IN_TRANSIT"
+        status: "IN_TRANSIT",
+        legacyStatusLabel: "IN TRANSIT"
       }
     });
   }
@@ -1410,6 +1421,7 @@ export async function createShipment(input: unknown) {
       salesOrder: data.salesOrder,
       salesperson: data.salesperson,
       status: "READY_FOR_BOL",
+      legacyStatusLabel: "PICK COMPLETE",
       shipDate: parseDateValue(data.shipDate),
       cancelDate: parseDateValue(data.cancelDate),
       deliveryDate: parseDateValue(data.deliveryDate),
@@ -1528,13 +1540,53 @@ export async function generateBillOfLading(input: unknown) {
           in: shipmentIds
         }
       },
-      data: { status: "BOL_CREATED" }
+      data: {
+        status: "BOL_CREATED",
+        legacyStatusLabel: "BOL CREATED"
+      }
     })
   ]);
 
   return {
     bolNumber,
     batchIds: shipments.map((shipment: GeneratedBolShipment) => shipment.batchId)
+  };
+}
+
+export async function updateBolShipmentLegacyStatus(input: unknown) {
+  const data = shipmentLegacyStatusUpdateSchema.parse(input);
+  const { tenantId } = await getTenantScope();
+  const batchIds = parseBatchIds(data.batchIds);
+
+  const shipments = await prisma.shipment.findMany({
+    where: {
+      tenantId,
+      batchId: {
+        in: batchIds
+      }
+    },
+    orderBy: [{ batchId: "asc" }]
+  });
+
+  if (!shipments.length) {
+    return null;
+  }
+
+  await prisma.shipment.updateMany({
+    where: {
+      tenantId,
+      id: {
+        in: shipments.map((shipment: (typeof shipments)[number]) => shipment.id)
+      }
+    },
+    data: {
+      legacyStatusLabel: data.legacyStatus
+    }
+  });
+
+  return {
+    legacyStatus: data.legacyStatus,
+    batchIds: shipments.map((shipment: (typeof shipments)[number]) => shipment.batchId)
   };
 }
 
@@ -1610,6 +1662,7 @@ export async function createRouteRun(input: unknown) {
     },
     data: {
       status: "ROUTED",
+      legacyStatusLabel: "ROUTED",
       routedDate: new Date(data.routeDate),
       carrierId: carrier?.id ?? driver?.carrierId ?? undefined
     }
@@ -1659,7 +1712,8 @@ export async function publishRouteRun(input: unknown) {
         id: { in: route.stops.map((stop: (typeof route.stops)[number]) => stop.shipmentId) }
     },
     data: {
-      status: "PUBLISHED"
+      status: "PUBLISHED",
+      legacyStatusLabel: "READY FOR PU"
     }
   });
 
@@ -1928,6 +1982,26 @@ export async function recordDriverLocationPing(input: unknown) {
       lastLocationAt: ping.capturedAt,
       status: assignment.status === "COMPLETED" ? assignment.status : "IN_TRANSIT",
       startedAt: assignment.startedAt ?? ping.capturedAt
+    }
+  });
+
+  await prisma.shipment.updateMany({
+    where: {
+      tenantId,
+      routeStops: {
+        some: {
+          routeRun: {
+            assignments: {
+              some: {
+                id: assignment.id
+              }
+            }
+          }
+        }
+      }
+    },
+    data: {
+      legacyStatusLabel: "IN TRANSIT"
     }
   });
 
@@ -2285,7 +2359,8 @@ export async function recordDeliveryEvent(input: unknown) {
   await prisma.shipment.update({
     where: { id: shipment.id },
     data: {
-      status: shipmentStatus
+      status: shipmentStatus,
+      legacyStatusLabel: deliveryLegacyStatusLabel(data.eventType)
     }
   });
 

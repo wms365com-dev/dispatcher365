@@ -9,11 +9,17 @@ function toTone(status: string) {
     return "draft";
   }
 
-  if (normalized === "ready-for-bol" || normalized === "bol-created") {
+  if (
+    normalized === "ready-for-bol" ||
+    normalized === "bol-created" ||
+    normalized === "pick-complete"
+  ) {
     return "ready";
   }
 
   if (
+    normalized === "shipped" ||
+    normalized === "ready-for-pu" ||
     normalized === "routed" ||
     normalized === "published" ||
     normalized === "in-transit" ||
@@ -37,6 +43,7 @@ function toTone(status: string) {
 
   if (
     normalized === "exception" ||
+    normalized === "need-extension" ||
     normalized === "cancelled" ||
     normalized === "declined" ||
     normalized === "reassigned" ||

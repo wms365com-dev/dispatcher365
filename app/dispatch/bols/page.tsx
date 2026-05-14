@@ -4,7 +4,10 @@ import { LegacyBolDocument } from "@/components/legacy-bol-document";
 import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
-import { generateBillOfLadingAction } from "@/lib/server/dispatch-actions";
+import {
+  changeBolSelectionToShippedAction,
+  generateBillOfLadingAction
+} from "@/lib/server/dispatch-actions";
 import { getBolsData } from "@/lib/server/dispatch-service";
 
 interface BolsPageProps {
@@ -13,6 +16,7 @@ interface BolsPageProps {
     batchIds?: string | string[];
     generated?: string;
     emailStatus?: string;
+    bulkStatus?: string;
   }>;
 }
 
@@ -62,6 +66,7 @@ interface BolShipment {
   salesOrder?: string | null;
   salesperson?: string | null;
   status: string;
+  legacyStatusLabel?: string | null;
   routedDate?: Date | null;
   shipDate?: Date | null;
   cancelDate?: Date | null;
@@ -185,6 +190,10 @@ function formatStatusLabel(value: string) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+function displayShipmentStatus(shipment: Pick<BolShipment, "status" | "legacyStatusLabel">) {
+  return shipment.legacyStatusLabel ?? formatStatusLabel(shipment.status);
+}
+
 function normalizeSearchBatchIds(value?: string | string[]) {
   const raw = Array.isArray(value) ? value : value ? [value] : [];
   return [...new Set(raw.flatMap((entry) => entry.split(/[,\s]+/).map((item) => item.trim().toUpperCase()).filter(Boolean)))];
@@ -243,7 +252,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     cancelDate: formatDate(shipment.cancelDate),
     salesPerson: shipment.salesperson ?? "-",
     routeDeskDate: formatDate(shipment.routeDeskDate),
-    status: formatStatusLabel(shipment.status),
+    status: displayShipmentStatus(shipment),
     shippedDate: formatDate(shipment.shipDate),
     truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-",
     units: String(shipment.units),
@@ -266,7 +275,7 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
     cancelDate: formatDate(shipment.cancelDate),
     salesPerson: shipment.salesperson ?? "-",
     routeDeskDate: formatDate(shipment.routeDeskDate),
-    status: formatStatusLabel(shipment.status),
+    status: displayShipmentStatus(shipment),
     shippedDate: formatDate(shipment.shipDate),
     truck: shipment.carrier?.carrierCode ?? shipment.scac ?? "-",
     units: String(shipment.units),
@@ -417,6 +426,18 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
         </SectionCard>
       ) : null}
 
+      {params?.bulkStatus === "shipped" ? (
+        <SectionCard
+          className="print-hidden"
+          title="Packing Slips Updated"
+          description="The selected packing slips were changed to the old shipped status for dispatch visibility."
+        >
+          <p className="helper-text">
+            The staged batches now show <strong>SHIPPED</strong> in the queue while keeping the grouped BOL workflow available.
+          </p>
+        </SectionCard>
+      ) : null}
+
       {!hasVicsPrefix ? (
         <SectionCard
           className="print-hidden"
@@ -436,6 +457,22 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
           hasInvalidSelection={selectedBatchIds.length > 0 && selectedRows.length === 0}
           initialBatchIds={selectedBatchIds}
           selectedRows={selectedRows}
+          selectedActions={
+            <>
+              <a
+                className="button button--secondary"
+                href={previewGroup ? "#generated-bol-preview" : "#generate-grouped-bol"}
+              >
+                Show Form
+              </a>
+              <form action={changeBolSelectionToShippedAction}>
+                <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
+                <button className="button" type="submit">
+                  Change All To Shipped
+                </button>
+              </form>
+            </>
+          }
         />
       </div>
 
@@ -445,27 +482,29 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
           title="Generate Grouped BOL"
           description="This follows the old AESON behavior: review the chosen packing slips first, then create one grouped BOL from that staged selection."
         >
-          <form action={generateBillOfLadingAction} className="field-grid">
-            <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
-            <label className="field">
-              <span>Batch Selection</span>
-              <input readOnly value={selectedBatchIds.join(", ")} />
-            </label>
-            <label className="field">
-              <span>Template</span>
-              <select name="template" defaultValue="STANDARD">
-                <option value="STANDARD">Standard</option>
-                <option value="RETURN">Return</option>
-                <option value="CDN">Canada</option>
-                <option value="LA">Los Angeles</option>
-              </select>
-            </label>
-            <div className="field field--wide form-actions">
-              <button className="button" type="submit">
-                Generate BOL
-              </button>
-            </div>
-          </form>
+          <div id="generate-grouped-bol">
+            <form action={generateBillOfLadingAction} className="field-grid">
+              <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
+              <label className="field">
+                <span>Batch Selection</span>
+                <input readOnly value={selectedBatchIds.join(", ")} />
+              </label>
+              <label className="field">
+                <span>Template</span>
+                <select name="template" defaultValue="STANDARD">
+                  <option value="STANDARD">Standard</option>
+                  <option value="RETURN">Return</option>
+                  <option value="CDN">Canada</option>
+                  <option value="LA">Los Angeles</option>
+                </select>
+              </label>
+              <div className="field field--wide form-actions">
+                <button className="button" type="submit">
+                  Generate BOL
+                </button>
+              </div>
+            </form>
+          </div>
         </SectionCard>
       ) : null}
 
@@ -478,8 +517,9 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
             : "Generate a BOL from the selected packing slips and the grouped document preview will appear here."
         }
       >
-        {previewGroup && primaryShipment && previewCustomer ? (
-          <article className="legacy-bol-preview">
+        <div id="generated-bol-preview">
+          {previewGroup && primaryShipment && previewCustomer ? (
+            <article className="legacy-bol-preview">
             <LegacyBolDocument
               approvedBy={primaryShipment.approvedBy ?? ""}
               authorization={primaryShipment.authorization ?? ""}
@@ -518,18 +558,19 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
               trailerNumber=""
             />
 
-            <BolPreviewActions
-              batchIds={previewShipments.map((shipment) => shipment.batchId)}
-              bolNumber={previewGroup.bolNumber}
-              defaultEmail={defaultEmail}
-              emailConfigured={emailConfigured}
-            />
-          </article>
-        ) : (
-          <p className="helper-text">
-            Select one or more batch IDs, click Show Data, then generate the BOL to see the grouped legacy print preview.
-          </p>
-        )}
+              <BolPreviewActions
+                batchIds={previewShipments.map((shipment) => shipment.batchId)}
+                bolNumber={previewGroup.bolNumber}
+                defaultEmail={defaultEmail}
+                emailConfigured={emailConfigured}
+              />
+            </article>
+          ) : (
+            <p className="helper-text">
+              Select one or more batch IDs, click Show Data, then generate the BOL to see the grouped legacy print preview.
+            </p>
+          )}
+        </div>
       </SectionCard>
 
       <SectionCard

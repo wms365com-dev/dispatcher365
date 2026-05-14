@@ -24,6 +24,7 @@ Source of truth used for this checklist:
 - `[Done]` Grouped BOL generation from selected packing slips
 - `[Done]` Legacy-style BOL print preview
 - `[Partial]` BOL queue refresh and status-change parity
+- `[Done]` BOL `CHANGE ALL TO SHIPPED` staged action
 - `[Partial]` Truck Run create/list/manifest flow
 - `[Partial]` Truck Run execution side screens:
   - `Assign`
@@ -35,7 +36,6 @@ Source of truth used for this checklist:
 
 ## Exact old-site features still missing
 
-- `[Missing]` `BOL -> CHANGE ALL TO SHIPPED` action from the staged BOL screen
 - `[Partial]` Old `Truck Run` side screens are rebuilt, but still need one more live parity pass for table density, actions, and role polish:
   - `Assign`
   - `Jobs`
@@ -91,7 +91,7 @@ Source of truth used for this checklist:
 - `[Missing]` Tenant-level landing preference so dispatch users can land in `Packing Slip` or their last-used module instead of always the dashboard
 - `[Missing]` Compact nav mode for repeat operators
 - `[Partial]` Packing Slip is much better, but still needs one more speed pass against the old form
-- `[Partial]` BOL staging now matches the old interaction much better, but still needs the missing status action noted above
+- `[Partial]` BOL staging now matches the old interaction much better, but still needs one more live operator pass for final rhythm polish
 - `[Partial]` Truck Run needs a more direct `build from selected BOL-created batches` rhythm
 - `[Partial]` Label module needs to feel print-first rather than queue-first
 
@@ -105,8 +105,8 @@ Source of truth used for this checklist:
 
 ## Current highest-priority build sequence
 
-1. Add the missing `BOL -> CHANGE ALL TO SHIPPED` parity action.
-2. Rework `Print Label` into the old direct-print workflow.
-3. Rebuild import/export.
-4. Finish carrier portal onboarding and driver mobile execution.
-5. Run another old-vs-new live parity pass across the Truck Run execution screens.
+1. Rework `Print Label` into the old direct-print workflow.
+2. Rebuild import/export.
+3. Finish carrier portal onboarding and driver mobile execution.
+4. Run another old-vs-new live parity pass across the Truck Run execution screens.
+5. Add landing preferences and compact operator mode.
