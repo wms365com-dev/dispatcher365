@@ -7,6 +7,7 @@ import {
 import { requireTenantSession } from "@/lib/server/auth";
 import {
   formatTrialDaysRemaining,
+  getConfiguredPricingPlans,
   resolveTenantAccess,
   stripeBillingConfigured,
   stripePortalConfigured
@@ -38,6 +39,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const daysRemaining = formatTrialDaysRemaining(session.activeTenant.trialEndsAt);
   const checkoutReady = stripeBillingConfigured();
   const portalReady = stripePortalConfigured() && Boolean(session.activeTenant.stripeCustomerId);
+  const pricingPlans = getConfiguredPricingPlans();
 
   return (
     <main className="tenant-page">
@@ -115,28 +117,50 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           </article>
         </div>
 
-        <div className="legacy-page-grid">
-          <section className="section-card surface">
-            <div className="section-card__header">
-              <h3>Start paid plan</h3>
-              <p>
-                Use Stripe Checkout to begin the subscription. If the tenant still has trial time left, checkout keeps that remaining trial window instead of restarting it.
-              </p>
-            </div>
-            <div className="billing-actions">
-              <form action={startBillingCheckoutAction}>
-                <button className="button" disabled={!checkoutReady} type="submit">
-                  Start Stripe checkout
-                </button>
-              </form>
-              {!checkoutReady ? (
-                <p className="helper-text">
-                  Set `STRIPE_SECRET_KEY` and `STRIPE_PRICE_ID` before this button can go live.
-                </p>
-              ) : null}
-            </div>
-          </section>
+        <div className="pricing-grid">
+          {pricingPlans.map((plan) => (
+            <section className="section-card surface pricing-card" key={plan.key}>
+              <div className="section-card__header">
+                <h3>{plan.name}</h3>
+                <p>{plan.description}</p>
+              </div>
+              <div className="pricing-card__body">
+                <p className="pricing-card__price">{plan.monthlyPriceLabel}</p>
+                <ul className="note-list">
+                  <li>{plan.seatsLabel}</li>
+                  <li>{plan.shipmentsLabel}</li>
+                  <li>{plan.supportLabel}</li>
+                </ul>
+                {plan.selfServe ? (
+                  <form action={startBillingCheckoutAction}>
+                    <input name="planKey" type="hidden" value={plan.key} />
+                    <button
+                      className="button"
+                      disabled={!checkoutReady || !plan.stripePriceId}
+                      type="submit"
+                    >
+                      {plan.ctaLabel}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="billing-actions">
+                    <a className="button button--secondary" href="mailto:hello@wms365.co?subject=WMS%20365%20Dispatch%20Enterprise%20Pricing">
+                      {plan.ctaLabel}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
 
+        {!checkoutReady ? (
+          <p className="helper-text">
+            Set `STRIPE_SECRET_KEY` plus at least one self-serve price id such as `STRIPE_PRICE_ID_STARTER` before paid checkout can go live.
+          </p>
+        ) : null}
+
+        <div className="legacy-page-grid">
           <section className="section-card surface">
             <div className="section-card__header">
               <h3>Manage billing</h3>

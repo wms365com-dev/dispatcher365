@@ -1197,6 +1197,29 @@ ul {
   word-break: break-word;
 }
 
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.pricing-card {
+  display: grid;
+}
+
+.pricing-card__body {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.pricing-card__price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1b3d57;
+}
+
 @media (max-width: 1280px) {
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1230,7 +1253,8 @@ ul {
   .three-up,
   .preview-card-grid,
   .result-grid,
-  .tenant-grid {
+  .tenant-grid,
+  .pricing-grid {
     grid-template-columns: 1fr;
   }
 

@@ -12,9 +12,10 @@ import {
 import { clearSessionCookie, requireTenantSession, writeSessionCookie } from "./auth";
 import {
   buildTrialEndDate,
+  getConfiguredPricingPlans,
   getAppBaseUrl,
   getStripe,
-  getStripePriceId,
+  getStripePriceIdForPlan,
   stripeBillingConfigured,
   stripePortalConfigured
 } from "./billing";
@@ -170,8 +171,9 @@ export async function resetPasswordAction(formData: FormData) {
   redirect("/sign-in?reset=1");
 }
 
-export async function startBillingCheckoutAction() {
+export async function startBillingCheckoutAction(formData: FormData) {
   const session = await requireTenantSession({ allowBillingHold: true });
+  const selectedPlanKey = typeof formData.get("planKey") === "string" ? String(formData.get("planKey")) : "starter";
 
   if (!stripeBillingConfigured()) {
     redirect("/billing?error=stripe-not-configured");
@@ -181,6 +183,14 @@ export async function startBillingCheckoutAction() {
 
   if (!stripe) {
     redirect("/billing?error=stripe-not-configured");
+  }
+
+  const selectedPlan = getConfiguredPricingPlans().find(
+    (plan) => plan.key === selectedPlanKey && plan.selfServe && plan.stripePriceId
+  );
+
+  if (!selectedPlan?.stripePriceId) {
+    redirect("/billing?error=invalid-plan");
   }
 
   const customerId = await ensureStripeCustomer({
@@ -210,7 +220,7 @@ export async function startBillingCheckoutAction() {
     cancel_url: `${getAppBaseUrl()}/billing?canceled=1`,
     line_items: [
       {
-        price: getStripePriceId(),
+        price: selectedPlan.stripePriceId,
         quantity: 1
       }
     ],
@@ -236,7 +246,7 @@ export async function startBillingCheckoutAction() {
     where: { id: session.activeTenant.id },
     data: {
       stripeCustomerId: customerId,
-      stripePriceId: getStripePriceId()
+      stripePriceId: getStripePriceIdForPlan(selectedPlan.key)
     }
   });
 

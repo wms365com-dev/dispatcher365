@@ -111,6 +111,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <div className="auth-links">
           <Link href="/forgot-password">Forgot password?</Link>
           <Link href="/sign-up">Create company account</Link>
+          <Link href="/pricing">View pricing</Link>
         </div>
 
         {demoSeedingEnabled ? (

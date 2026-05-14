@@ -56,7 +56,8 @@ Optional but needed for subscription billing:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
-- `STRIPE_PRICE_ID`
+- `STRIPE_PRICE_ID_STARTER`
+- `STRIPE_PRICE_ID_GROWTH`
 
 Recommended Railway env values:
 
@@ -64,13 +65,15 @@ Recommended Railway env values:
 - `AUTH_SECRET=<long-random-secret>`
 - `ENABLE_DEMO_SEED=true`
 - `NEXT_PUBLIC_APP_URL=https://dispatcher365-production.up.railway.app`
-- `STRIPE_PRICE_ID=<Stripe recurring price id>`
+- `STRIPE_PRICE_ID_STARTER=<Stripe recurring starter price id>`
+- `STRIPE_PRICE_ID_GROWTH=<Stripe recurring growth price id>`
 
 Useful endpoints after deploy:
 
 - `/sign-in`
 - `/dispatch`
 - `/billing`
+- `/pricing`
 - `/sign-up`
 - `/dispatch/issues`
 - `/dispatch/routes/:routeRunId/manifest`
@@ -86,6 +89,7 @@ Useful endpoints after deploy:
 - BOL email send, truck run manifest print/email, and issue reporting are now wired into the real workflow.
 - Mobile alert records are now created when a route is published so the future driver app can consume that queue.
 - New tenants can self-register, start on a 14-day trial, and then move into a Stripe-hosted billing flow.
+- Pricing is now tiered in the app with Starter, Growth, and Enterprise plan cards. Starter and Growth can map to separate Stripe prices.
 - If a tenant subscription fails or the trial expires, the tenant is redirected to `/billing` and dispatch access is locked until billing recovers.
 - Password reset emails now flow through the SMTP configuration and use one-time reset tokens stored in the database.
 - Keep all tenant filtering on the server side.

@@ -106,6 +106,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
 
         <div className="auth-links">
           <Link href="/sign-in">Already have an account? Sign in</Link>
+          <Link href="/pricing">View pricing</Link>
         </div>
       </section>
     </main>

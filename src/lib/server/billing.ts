@@ -1,5 +1,7 @@
 import Stripe from "stripe";
 
+import { getPricingPlans, getSelfServePricingPlan } from "@/lib/pricing";
+
 export const TRIAL_LENGTH_DAYS = 14;
 export const STRIPE_API_VERSION = "2026-04-22.dahlia";
 
@@ -36,7 +38,7 @@ export function getAppBaseUrl() {
 }
 
 export function stripeBillingConfigured() {
-  return Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_ID);
+  return Boolean(process.env.STRIPE_SECRET_KEY && getPricingPlans().some((plan) => plan.selfServe && plan.stripePriceId));
 }
 
 export function stripeWebhookConfigured() {
@@ -49,6 +51,14 @@ export function stripePortalConfigured() {
 
 export function getStripePriceId() {
   return process.env.STRIPE_PRICE_ID ?? "";
+}
+
+export function getConfiguredPricingPlans() {
+  return getPricingPlans();
+}
+
+export function getStripePriceIdForPlan(planKey?: string) {
+  return getSelfServePricingPlan(planKey)?.stripePriceId ?? process.env.STRIPE_PRICE_ID ?? "";
 }
 
 export function getStripe() {
