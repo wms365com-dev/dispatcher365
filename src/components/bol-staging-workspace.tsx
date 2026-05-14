@@ -1,6 +1,4 @@
 "use client";
-
-import type { ReactNode } from "react";
 import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -33,7 +31,6 @@ interface BolStagingWorkspaceProps {
   selectedRows: BolTableRow[];
   allRows: BolTableRow[];
   hasInvalidSelection?: boolean;
-  selectedActions?: ReactNode;
 }
 
 function normalizeBatchId(value: string) {
@@ -52,8 +49,7 @@ export function BolStagingWorkspace({
   initialBatchIds,
   selectedRows,
   allRows,
-  hasInvalidSelection = false,
-  selectedActions
+  hasInvalidSelection = false
 }: BolStagingWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -314,10 +310,6 @@ export function BolStagingWorkspace({
               </tbody>
             </table>
           </div>
-
-          {selectedRows.length && selectedActions ? (
-            <div className="legacy-bol-stage__selected-actions">{selectedActions}</div>
-          ) : null}
         </section>
       </div>
 

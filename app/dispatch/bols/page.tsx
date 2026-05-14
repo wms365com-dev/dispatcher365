@@ -457,24 +457,25 @@ export default async function BolsPage({ searchParams }: BolsPageProps) {
           hasInvalidSelection={selectedBatchIds.length > 0 && selectedRows.length === 0}
           initialBatchIds={selectedBatchIds}
           selectedRows={selectedRows}
-          selectedActions={
-            <>
-              <a
-                className="button button--secondary"
-                href={previewGroup ? "#generated-bol-preview" : "#generate-grouped-bol"}
-              >
-                Show Form
-              </a>
-              <form action={changeBolSelectionToShippedAction}>
-                <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
-                <button className="button" type="submit">
-                  Change All To Shipped
-                </button>
-              </form>
-            </>
-          }
         />
       </div>
+
+      {selectedBatchIds.length ? (
+        <div className="print-hidden surface legacy-bol-stage__selected-actions">
+          <a
+            className="button button--secondary"
+            href={previewGroup ? "#generated-bol-preview" : "#generate-grouped-bol"}
+          >
+            Show Form
+          </a>
+          <form action={changeBolSelectionToShippedAction}>
+            <input name="batchIds" type="hidden" value={selectedBatchIds.join(",")} />
+            <button className="button" type="submit">
+              Change All To Shipped
+            </button>
+          </form>
+        </div>
+      ) : null}
 
       {selectedBatchIds.length ? (
         <SectionCard
