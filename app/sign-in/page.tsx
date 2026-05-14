@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signInAction } from "@/lib/server/auth-actions";
@@ -11,6 +12,7 @@ import {
 interface SignInPageProps {
   searchParams?: Promise<{
     error?: string;
+    reset?: string;
   }>;
 }
 
@@ -36,6 +38,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   }
 
   const errorMessage = params?.error ? errorMessages[params.error] : undefined;
+  const resetComplete = params?.reset === "1";
 
   return (
     <main className="auth-page">
@@ -75,6 +78,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         </div>
 
         {errorMessage ? <p className="auth-error">{errorMessage}</p> : null}
+        {resetComplete ? (
+          <p className="auth-success">
+            Your password was reset. You can sign in with the new password now.
+          </p>
+        ) : null}
 
         <form action={signInAction} className="auth-form">
           <label className="field">
@@ -99,6 +107,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             Sign in to WMS 365 Dispatch
           </button>
         </form>
+
+        <div className="auth-links">
+          <Link href="/forgot-password">Forgot password?</Link>
+          <Link href="/sign-up">Create company account</Link>
+        </div>
 
         {demoSeedingEnabled ? (
           <div className="auth-demo surface">

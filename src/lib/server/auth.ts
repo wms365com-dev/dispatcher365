@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 
+import { resolveTenantAccess } from "./billing";
 import { verifyPasswordHash } from "./password";
 
 const SESSION_COOKIE_NAME = "wms365_dispatch_session";
@@ -105,14 +106,37 @@ export async function getCurrentSession() {
   }
 
   const activeMembership =
-    user.memberships.find((membership) => membership.tenantId === payload.tenantId) ??
+    user.memberships.find(
+      (membership: (typeof user.memberships)[number]) => membership.tenantId === payload.tenantId
+    ) ??
     (user.memberships.length === 1 ? user.memberships[0] : null);
+  let activeTenant = activeMembership?.tenant ?? null;
+
+  if (
+    activeTenant &&
+    activeTenant.billingStatus === "TRIALING" &&
+    activeTenant.trialEndsAt &&
+    activeTenant.trialEndsAt.getTime() <= Date.now()
+  ) {
+    activeTenant = await prisma.tenant.update({
+      where: { id: activeTenant.id },
+      data: {
+        billingStatus: "PAST_DUE",
+        accessState: "LOCKED",
+        billingLockedAt: activeTenant.billingLockedAt ?? new Date(),
+        billingLockReason: activeTenant.billingLockReason ?? "trial-expired"
+      }
+    });
+  }
+
+  const tenantAccess = activeTenant ? resolveTenantAccess(activeTenant) : null;
 
   return {
     user,
     memberships: user.memberships,
     activeMembership,
-    activeTenant: activeMembership?.tenant ?? null
+    activeTenant,
+    tenantAccess
   };
 }
 
@@ -126,11 +150,25 @@ export async function requireSession() {
   return session;
 }
 
-export async function requireTenantSession() {
+export async function requireTenantSession(options?: {
+  allowBillingHold?: boolean;
+}) {
   const session = await requireSession();
 
   if (!session.activeMembership || !session.activeTenant) {
     redirect("/select-tenant");
+  }
+
+  if (
+    !options?.allowBillingHold &&
+    session.activeMembership.role !== "PLATFORM_ADMIN" &&
+    session.tenantAccess?.locked
+  ) {
+    const params = new URLSearchParams();
+    if (session.tenantAccess.reason) {
+      params.set("reason", session.tenantAccess.reason);
+    }
+    redirect((`/billing${params.toString() ? `?${params.toString()}` : ""}`) as never);
   }
 
   return session as typeof session & {

@@ -21,6 +21,9 @@ export default async function DispatchLayout({ children }: DispatchLayoutProps) 
 
   const topbarActions = (
     <>
+      <Link className="button button--ghost" href="/billing">
+        Billing
+      </Link>
       <Link className="button button--ghost" href="/select-tenant">
         Switch tenant
       </Link>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { selectTenantAction, signOutAction } from "@/lib/server/auth-actions";
 import { requireSession } from "@/lib/server/auth";
+import { formatTrialDaysRemaining, resolveTenantAccess } from "@/lib/server/billing";
 
 interface SelectTenantPageProps {
   searchParams?: Promise<{
@@ -16,6 +17,9 @@ export default async function SelectTenantPage({ searchParams }: SelectTenantPag
   const session = await requireSession();
 
   if (session.memberships.length === 1 && session.activeMembership) {
+    if (session.tenantAccess?.locked) {
+      redirect("/billing");
+    }
     redirect("/dispatch");
   }
 
@@ -36,22 +40,35 @@ export default async function SelectTenantPage({ searchParams }: SelectTenantPag
         ) : null}
 
         <div className="tenant-grid">
-          {session.memberships.map((membership) => (
-            <article className="tenant-card" key={membership.id}>
-              <div>
-                <p className="kicker">{membership.role.replace(/_/g, " ")}</p>
-                <h3>{membership.tenant.name}</h3>
-                <p>{membership.tenant.slug}</p>
-              </div>
+          {session.memberships.map((membership: (typeof session.memberships)[number]) => {
+            const tenantAccess = resolveTenantAccess(membership.tenant);
+            const trialDays = formatTrialDaysRemaining(membership.tenant.trialEndsAt);
 
-              <form action={selectTenantAction}>
-                <input name="tenantId" type="hidden" value={membership.tenantId} />
-                <button className="button" type="submit">
-                  Open tenant
-                </button>
-              </form>
-            </article>
-          ))}
+            return (
+              <article className="tenant-card" key={membership.id}>
+                <div>
+                  <p className="kicker">{membership.role.replace(/_/g, " ")}</p>
+                  <h3>{membership.tenant.name}</h3>
+                  <p>{membership.tenant.slug}</p>
+                </div>
+
+                <p className="helper-text">
+                  {tenantAccess.locked
+                    ? `Billing locked (${membership.tenant.billingStatus.replace(/_/g, " ").toLowerCase()}).`
+                    : membership.tenant.billingStatus === "TRIALING"
+                      ? `Trial active: ${trialDays ?? 0} day${trialDays === 1 ? "" : "s"} remaining.`
+                      : `Billing status: ${membership.tenant.billingStatus.replace(/_/g, " ").toLowerCase()}.`}
+                </p>
+
+                <form action={selectTenantAction}>
+                  <input name="tenantId" type="hidden" value={membership.tenantId} />
+                  <button className="button" type="submit">
+                    Open tenant
+                  </button>
+                </form>
+              </article>
+            );
+          })}
         </div>
 
         <form action={signOutAction}>

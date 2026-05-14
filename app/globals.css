@@ -1098,6 +1098,10 @@ ul {
   padding: 24px;
 }
 
+.auth-page--single {
+  grid-template-columns: 1fr;
+}
+
 .auth-panel__header,
 .tenant-panel__header {
   display: grid;
@@ -1133,6 +1137,31 @@ ul {
   color: #9b3232;
 }
 
+.auth-success {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #b8e2cf;
+  background: #edf9f3;
+  color: #1d6d49;
+}
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 16px;
+}
+
+.auth-links a {
+  color: #0a7fb0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.auth-links a:hover {
+  text-decoration: underline;
+}
+
 .tenant-grid {
   margin-top: 22px;
   display: grid;
@@ -1151,6 +1180,21 @@ ul {
 .tenant-card h3 {
   margin: 6px 0 4px;
   color: #304657;
+}
+
+.tenant-panel__footer,
+.billing-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.billing-email {
+  font-size: 1.05rem;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 @media (max-width: 1280px) {

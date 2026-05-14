@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { ensureDemoSeed } from "@/lib/server/demo-seed";
+import { resolveTenantAccess } from "@/lib/server/billing";
 
 import {
   authenticateUser,
@@ -40,6 +41,10 @@ export async function signInAction(formData: FormData) {
       tenantId: firstMembership.tenantId
     });
 
+    if (resolveTenantAccess(firstMembership.tenant).locked) {
+      redirect("/billing");
+    }
+
     redirect("/dispatch");
   }
 
@@ -58,7 +63,9 @@ export async function signOutAction() {
 export async function selectTenantAction(formData: FormData) {
   const tenantId = getStringValue(formData, "tenantId");
   const session = await requireSession();
-  const membership = session.memberships.find((candidate) => candidate.tenantId === tenantId);
+  const membership = session.memberships.find(
+    (candidate: (typeof session.memberships)[number]) => candidate.tenantId === tenantId
+  );
 
   if (!membership) {
     redirect("/select-tenant?error=invalid-tenant");
@@ -68,6 +75,10 @@ export async function selectTenantAction(formData: FormData) {
     userId: session.user.id,
     tenantId: membership.tenantId
   });
+
+  if (resolveTenantAccess(membership.tenant).locked) {
+    redirect("/billing");
+  }
 
   redirect("/dispatch");
 }

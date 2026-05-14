@@ -108,10 +108,38 @@ enum DriverDevicePlatform {
   WEB
 }
 
+enum TenantBillingStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  UNPAID
+  CANCELED
+  PAUSED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+}
+
+enum TenantAccessState {
+  ACTIVE
+  LOCKED
+}
+
 model Tenant {
   id                  String             @id @default(cuid())
   slug                String             @unique
   name                String
+  billingEmail        String?
+  trialStartedAt      DateTime?
+  trialEndsAt         DateTime?
+  billingStatus       TenantBillingStatus @default(TRIALING)
+  accessState         TenantAccessState   @default(ACTIVE)
+  billingLockedAt     DateTime?
+  billingLockReason   String?
+  stripeCustomerId    String?             @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId       String?
+  billingCurrentPeriodEnd DateTime?
+  billingCheckoutCompletedAt DateTime?
   gs1CompanyPrefix    String?
   warehouseName       String?
   warehouseAddress1   String?
@@ -161,7 +189,20 @@ model User {
   outboundEmails OutboundEmail[]
   routeAssignmentsCreated   RouteAssignment[] @relation("RouteAssignmentCreatedBy")
   routeAssignmentsResponded RouteAssignment[] @relation("RouteAssignmentRespondedBy")
+  passwordResetTokens PasswordResetToken[]
   auditLogs      AuditLog[]
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model TenantMembership {

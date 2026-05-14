@@ -204,6 +204,33 @@ export const companyCreateSchema = z.object({
   warehouseFob: optionalText
 });
 
+export const signUpSchema = z.object({
+  companyName: z.string().trim().min(2),
+  companySlug: optionalText.transform((value) =>
+    value ? value.toLowerCase().replace(/[^a-z0-9-]+/g, "-") : undefined
+  ),
+  fullName: z.string().trim().min(2),
+  email: z.string().trim().email().transform((value) => value.toLowerCase()),
+  password: z.string().trim().min(8),
+  billingEmail: optionalEmail,
+  phone: optionalText
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().trim().email().transform((value) => value.toLowerCase())
+});
+
+export const passwordResetSchema = z
+  .object({
+    token: z.string().trim().min(20),
+    password: z.string().trim().min(8),
+    confirmPassword: z.string().trim().min(8)
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: "Passwords must match.",
+    path: ["confirmPassword"]
+  });
+
 export const labelJobCreateSchema = z.object({
   batchId: z.string().trim().min(1).transform((value) => value.toUpperCase()),
   labelKind: z.enum(["CARTON", "PALLET"]),
