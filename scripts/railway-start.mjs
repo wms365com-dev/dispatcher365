@@ -49,7 +49,11 @@ async function main() {
   }
 
   console.log("Applying Prisma schema to the configured database...");
-  await runNodeScript(fileURLToPath(prismaCli), ["db", "push", "--skip-generate"]);
+  const dbPushArgs = ["db", "push", "--skip-generate"];
+  if (process.env.PRISMA_ACCEPT_DATA_LOSS === "true") {
+    dbPushArgs.push("--accept-data-loss");
+  }
+  await runNodeScript(fileURLToPath(prismaCli), dbPushArgs);
 
   console.log(`Starting Next.js on port ${port}...`);
   const child = spawn(process.execPath, [fileURLToPath(nextCli), "start", "-H", "0.0.0.0", "-p", port], {
