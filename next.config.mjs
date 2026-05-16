@@ -10,21 +10,23 @@ const nextConfig = {
   typedRoutes: true,
   outputFileTracingRoot: workspaceRoot,
   async redirects() {
+    const pageSource = "/:path((?!api(?:/|$)).*)";
+
     return [
       {
-        source: "/:path*",
+        source: pageSource,
         has: [{ type: "host", value: "ship365.co" }],
         destination: `${canonicalAppUrl}/:path*`,
         permanent: false
       },
       {
-        source: "/:path*",
+        source: pageSource,
         has: [{ type: "host", value: "www.ship365.co" }],
         destination: `${canonicalAppUrl}/:path*`,
         permanent: false
       },
       {
-        source: "/:path*",
+        source: pageSource,
         has: [{ type: "host", value: "dispatcher365-production.up.railway.app" }],
         destination: `${canonicalAppUrl}/:path*`,
         permanent: false
