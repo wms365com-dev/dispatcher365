@@ -1,0 +1,55 @@
+name: Ship365 Site Review
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */3 * * *"
+
+jobs:
+  parity-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LEGACY_SITE_EMAIL: ${{ secrets.LEGACY_SITE_EMAIL }}
+      LEGACY_SITE_PASSWORD: ${{ secrets.LEGACY_SITE_PASSWORD }}
+      NEW_SITE_EMAIL: ${{ secrets.NEW_SITE_EMAIL }}
+      NEW_SITE_PASSWORD: ${{ secrets.NEW_SITE_PASSWORD }}
+      OLD_SITE_URL: https://www.aesonretailsolutions.com
+      NEW_SITE_URL: https://ship365.co
+      NEW_APP_URL: https://app.ship365.co
+      REVIEW_TENANT_NAME: Healtea
+      REVIEW_OUTPUT_DIR: artifacts/site-review/github-run
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run review cycle
+        run: npm run review:sites
+
+      - name: Add summary to workflow
+        if: always()
+        run: |
+          if [ -f artifacts/site-review/github-run/summary.md ]; then
+            cat artifacts/site-review/github-run/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ship365-site-review
+          path: artifacts/site-review/github-run
+          if-no-files-found: warn

@@ -80,6 +80,56 @@ Useful endpoints after deploy:
 - `/api/health`
 - `/api/stripe/webhook`
 
+## Legacy backfill
+
+To inspect or import data from the old Laravel/MySQL system:
+
+```powershell
+npm run legacy:backfill -- --list-companies
+npm run legacy:backfill -- --company "HDS Trading Corp" --dry-run
+```
+
+The importer script lives at [scripts/import-legacy-sql.mjs](/E:/aesonretailsolutions/modern-app/scripts/import-legacy-sql.mjs), and the migration notes are in [docs/legacy-backfill-plan-2026-05-15.md](/E:/aesonretailsolutions/modern-app/docs/legacy-backfill-plan-2026-05-15.md).
+
+## Legacy mirror mode
+
+To run the new app as a repeated mirror of the old system during cutover, place the newest `.sql` dump into:
+
+- `E:\aesonretailsolutions\modern-app\legacy-drops`
+
+Then run:
+
+```powershell
+npm run legacy:sync -- --dry-run
+npm run legacy:sync -- --company "HDS Trading Corp" --apply
+```
+
+The sync runner uses the newest dump file in `legacy-drops` unless `--dump` is provided explicitly, and it writes logs to:
+
+- `E:\aesonretailsolutions\modern-app\logs\legacy-sync`
+
+The cutover/mirror operating notes are in [docs/legacy-mirror-cutover-plan-2026-05-15.md](/E:/aesonretailsolutions/modern-app/docs/legacy-mirror-cutover-plan-2026-05-15.md).
+
+## Automated site review
+
+The recurring site parity workflow is documented in [docs/site-review-automation-2026-05-16.md](/E:/aesonretailsolutions/modern-app/docs/site-review-automation-2026-05-16.md).
+
+Run it locally with:
+
+```powershell
+$env:LEGACY_SITE_EMAIL="..."
+$env:LEGACY_SITE_PASSWORD="..."
+$env:NEW_SITE_EMAIL="..."
+$env:NEW_SITE_PASSWORD="..."
+npm run review:sites
+```
+
+The scheduled GitHub Actions workflow runs every 3 hours using:
+
+```text
+0 */3 * * *
+```
+
 ## Notes
 
 - The core dispatch pages now read and write real PostgreSQL data through Prisma.
