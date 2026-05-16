@@ -1,12 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 
 import { resolveTenantAccess } from "./billing";
-import { verifyPasswordHash } from "./password";
+import { createPasswordHash, isLegacyBcryptHash, verifyPasswordHash } from "./password";
 
 const SESSION_COOKIE_NAME = "wms365_dispatch_session";
 
@@ -17,6 +17,27 @@ interface SessionPayload {
 
 function getSessionSecret() {
   return process.env.AUTH_SECRET ?? process.env.JWT_SECRET ?? "dev-only-wms365-dispatch-secret";
+}
+
+function normalizeCookieHost(host: string) {
+  return host.split(",")[0]?.trim().split(":")[0]?.toLowerCase() ?? "";
+}
+
+async function getSessionCookieDomain() {
+  if (process.env.NODE_ENV !== "production") {
+    return undefined;
+  }
+
+  const headerStore = await headers();
+  const host = normalizeCookieHost(
+    headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? ""
+  );
+
+  if (host === "ship365.co" || host.endsWith(".ship365.co")) {
+    return ".ship365.co";
+  }
+
+  return undefined;
 }
 
 function signValue(value: string) {
@@ -60,19 +81,30 @@ function decodeSession(token?: string) {
 
 export async function writeSessionCookie(payload: SessionPayload) {
   const cookieStore = await cookies();
+  const domain = await getSessionCookieDomain();
 
   cookieStore.set(SESSION_COOKIE_NAME, encodeSession(payload), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 12
+    maxAge: 60 * 60 * 12,
+    ...(domain ? { domain } : {})
   });
 }
 
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE_NAME);
+  const domain = await getSessionCookieDomain();
+
+  cookieStore.set(SESSION_COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0,
+    ...(domain ? { domain } : {})
+  });
 }
 
 export async function getSessionPayload() {
@@ -196,6 +228,15 @@ export async function authenticateUser(email: string, password: string) {
 
   if (!user || !verifyPasswordHash(password, user.passwordHash)) {
     return null;
+  }
+
+  if (isLegacyBcryptHash(user.passwordHash)) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: createPasswordHash(password)
+      }
+    });
   }
 
   return user;
