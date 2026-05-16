@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
@@ -19,25 +19,12 @@ function getSessionSecret() {
   return process.env.AUTH_SECRET ?? process.env.JWT_SECRET ?? "dev-only-wms365-dispatch-secret";
 }
 
-function normalizeCookieHost(host: string) {
-  return host.split(",")[0]?.trim().split(":")[0]?.toLowerCase() ?? "";
-}
-
-async function getSessionCookieDomain() {
+function getSessionCookieDomain() {
   if (process.env.NODE_ENV !== "production") {
     return undefined;
   }
 
-  const headerStore = await headers();
-  const host = normalizeCookieHost(
-    headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? ""
-  );
-
-  if (host === "ship365.co" || host.endsWith(".ship365.co")) {
-    return ".ship365.co";
-  }
-
-  return undefined;
+  return process.env.SESSION_COOKIE_DOMAIN ?? ".ship365.co";
 }
 
 function signValue(value: string) {
@@ -81,7 +68,7 @@ function decodeSession(token?: string) {
 
 export async function writeSessionCookie(payload: SessionPayload) {
   const cookieStore = await cookies();
-  const domain = await getSessionCookieDomain();
+  const domain = getSessionCookieDomain();
 
   cookieStore.set(SESSION_COOKIE_NAME, encodeSession(payload), {
     httpOnly: true,
@@ -95,7 +82,7 @@ export async function writeSessionCookie(payload: SessionPayload) {
 
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
-  const domain = await getSessionCookieDomain();
+  const domain = getSessionCookieDomain();
 
   cookieStore.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
