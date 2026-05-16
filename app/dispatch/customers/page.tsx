@@ -5,10 +5,18 @@ import { SimpleTable } from "@/components/simple-table";
 import { createCustomerAction } from "@/lib/server/dispatch-actions";
 import { getCustomersData } from "@/lib/server/dispatch-service";
 
-export default async function CustomersPage() {
+interface CustomersPageProps {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function CustomersPage({ searchParams }: CustomersPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const view = params?.view === "list" ? "list" : "create";
   const { customers } = await getCustomersData();
 
-  const rows = customers.map((customer) => ({
+  const rows = customers.map((customer: (typeof customers)[number]) => ({
     code: customer.customerCode,
     name: customer.name,
     address: customer.billingAddress1 ?? "-",
@@ -23,13 +31,17 @@ export default async function CustomersPage() {
       <PageHeader
         eyebrow="Customer"
         title="Customer Info"
-        description="This follows the original customer flow more closely: create the customer, keep the ship-to details with it, then reuse the code during packing slip and BOL work."
+        description={
+          view === "list"
+            ? "Customer lookup follows the old separate lookup screen."
+            : "Enter the customer first, then reuse the code during packing slip and BOL work."
+        }
       />
 
-      <div className="legacy-page-grid">
+      {view === "create" ? (
         <SectionCard
           title="Use Form Input"
-          description="The old customer page captured both billing and ship-to details. This rebuild keeps both so the BOL has the right destination data."
+          description="The old customer screen captured billing and ship-to details in one entry form."
         >
           <form action={createCustomerAction} className="legacy-form-grid">
             <label className="field">
@@ -61,7 +73,7 @@ export default async function CustomersPage() {
               <input name="shipToCode" placeholder="Optional ship-to code" />
             </label>
             <label className="field">
-              <span>Ship To Name</span>
+              <span>Name</span>
               <input name="shipToName" placeholder="WG Pro-Manufacturing Inc" />
             </label>
             <label className="field field--wide">
@@ -122,33 +134,35 @@ export default async function CustomersPage() {
             </div>
           </form>
         </SectionCard>
+      ) : (
+        <>
+          <SectionCard
+            title="Customer List"
+            description="Customer lookup is separated from entry so dispatchers can scan without the form sitting beside it."
+          >
+            <SimpleTable
+              columns={[
+                { key: "code", label: "Customer number" },
+                { key: "name", label: "Name" },
+                { key: "address", label: "Address" },
+                { key: "city", label: "City" },
+                { key: "postalCode", label: "Zipcode" },
+                { key: "tel", label: "Tel" },
+                { key: "email", label: "Email" }
+              ]}
+              rows={rows}
+              emptyMessage="No customers have been added for this tenant yet."
+            />
+          </SectionCard>
 
-        <SectionCard
-          title="Customer List"
-          description="This keeps the lookup table close to the old customer screen so operators can scan codes and addresses quickly."
-        >
-          <SimpleTable
-            columns={[
-              { key: "code", label: "Customer number" },
-              { key: "name", label: "Name" },
-              { key: "address", label: "Address" },
-              { key: "city", label: "City" },
-              { key: "postalCode", label: "Zipcode" },
-              { key: "tel", label: "Tel" },
-              { key: "email", label: "Email" }
-            ]}
-            rows={rows}
-            emptyMessage="No customers have been added for this tenant yet."
-          />
-        </SectionCard>
-      </div>
-
-      <SectionCard
-        title="Closest Match Preview"
-        description="This preserves the add-or-select behavior you wanted when a dispatcher types a customer that does not exist."
-      >
-        <CustomerResolutionDemo customers={customers} />
-      </SectionCard>
+          <SectionCard
+            title="Closest Match Preview"
+            description="This keeps the add-or-select customer helper close to the lookup screen."
+          >
+            <CustomerResolutionDemo customers={customers} />
+          </SectionCard>
+        </>
+      )}
     </>
   );
 }

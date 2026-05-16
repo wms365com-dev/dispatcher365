@@ -38,14 +38,14 @@ export async function createCustomerAction(formData: FormData) {
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/customers");
   revalidatePath("/dispatch/packing-slips");
-  redirect("/dispatch/customers");
+  redirect("/dispatch/customers?view=create");
 }
 
 export async function createCarrierAction(formData: FormData) {
   await createCarrier(toFormObject(formData));
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/carriers");
-  redirect("/dispatch/carriers");
+  redirect("/dispatch/carriers?view=create");
 }
 
 export async function createSalesRepAction(formData: FormData) {
@@ -53,7 +53,7 @@ export async function createSalesRepAction(formData: FormData) {
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/sales-reps");
   revalidatePath("/dispatch/packing-slips");
-  redirect("/dispatch/sales-reps");
+  redirect("/dispatch/sales-reps?view=create");
 }
 
 export async function createDriverAction(formData: FormData) {
@@ -61,7 +61,7 @@ export async function createDriverAction(formData: FormData) {
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/carriers");
   revalidatePath("/dispatch/routes");
-  redirect("/dispatch/carriers");
+  redirect("/dispatch/carriers?view=create");
 }
 
 export async function createProductAction(formData: FormData) {
@@ -69,7 +69,7 @@ export async function createProductAction(formData: FormData) {
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/carton-info");
   revalidatePath("/dispatch/labels");
-  redirect("/dispatch/carton-info");
+  redirect("/dispatch/carton-info?view=create");
 }
 
 export async function createShipmentAction(formData: FormData) {
@@ -80,11 +80,11 @@ export async function createShipmentAction(formData: FormData) {
 
   if (!result.created) {
     const lookup = encodeURIComponent(result.lookupQuery);
-    redirect(`/dispatch/packing-slips?customerLookup=${lookup}`);
+    redirect(`/dispatch/packing-slips?view=list&customerLookup=${lookup}`);
   }
 
   revalidatePath("/dispatch/bols");
-  redirect("/dispatch/packing-slips");
+  redirect("/dispatch/packing-slips?view=create");
 }
 
 export async function generateBillOfLadingAction(formData: FormData) {
@@ -137,10 +137,10 @@ export async function createRouteRunAction(formData: FormData) {
   revalidatePath("/dispatch/routes/jobs");
 
   if (!routeRun) {
-    redirect("/dispatch/routes?routeIssue=no-eligible-batches");
+    redirect("/dispatch/routes?view=create&routeIssue=no-eligible-batches");
   }
 
-  redirect("/dispatch/routes");
+  redirect("/dispatch/routes?view=create");
 }
 
 export async function publishRouteRunAction(formData: FormData) {
@@ -195,10 +195,13 @@ export async function recordDriverLocationPingAction(formData: FormData) {
 }
 
 export async function queueLabelJobAction(formData: FormData) {
-  await queueLabelJob(toFormObject(formData));
+  const payload = toFormObject(formData);
+  await queueLabelJob(payload);
   revalidatePath("/dispatch");
   revalidatePath("/dispatch/labels");
-  redirect("/dispatch/labels");
+  const view = String(payload.templateVariant ?? "SIMPLE").toLowerCase();
+  const normalizedView = view === "case" ? "cases" : view === "item" ? "item" : "simple";
+  redirect(`/dispatch/labels?view=${normalizedView}`);
 }
 
 export async function recordDeliveryEventAction(formData: FormData) {

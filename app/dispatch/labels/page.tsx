@@ -8,10 +8,18 @@ function formatDate(value?: Date | null) {
   return value ? value.toISOString().slice(0, 16).replace("T", " ") : "Pending";
 }
 
-export default async function LabelsPage() {
+interface LabelsPageProps {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function LabelsPage({ searchParams }: LabelsPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const view = params?.view === "item" || params?.view === "cases" ? params.view : "simple";
   const { shipments, labelJobs } = await getLabelsData();
 
-  const rows = labelJobs.map((job) => ({
+  const rows = labelJobs.map((job: (typeof labelJobs)[number]) => ({
     batchId: job.shipment?.batchId ?? "-",
     customer: job.shipment?.customer.customerCode ?? "-",
     kind: job.labelKind,
@@ -20,18 +28,26 @@ export default async function LabelsPage() {
     printedAt: formatDate(job.printedAt)
   }));
 
+  const templateVariant = view === "item" ? "ITEM" : view === "cases" ? "CASE" : "SIMPLE";
+  const viewTitle =
+    view === "item"
+      ? "Simple with Item Info"
+      : view === "cases"
+        ? "Full cases and mixed cases"
+        : "Simple Label";
+
   return (
     <>
       <PageHeader
         eyebrow="Print Label"
-        title="Label Output"
-        description="This module now mirrors the old three-label workflow more closely: simple label, simple with item info, and full or mixed cases."
+        title={viewTitle}
+        description="Label entry is split by the old navigation pattern so print operators can choose the exact mode first."
       />
 
       <div className="legacy-page-grid">
         <SectionCard
           title="Generate Label Job"
-          description="Select the shipment and variant, then push it into the print queue."
+          description="Enter the order or batch and print the selected label mode."
         >
           <form action={queueLabelJobAction} className="legacy-form-grid">
             <label className="field">
@@ -47,7 +63,7 @@ export default async function LabelsPage() {
             </label>
             <label className="field">
               <span>Template</span>
-              <select name="templateVariant" defaultValue="SIMPLE">
+              <select name="templateVariant" defaultValue={templateVariant}>
                 <option value="SIMPLE">Simple Label</option>
                 <option value="ITEM">Simple with Item info</option>
                 <option value="CASE">Full cases and mixed cases</option>
@@ -63,7 +79,7 @@ export default async function LabelsPage() {
               </button>
             </div>
             <datalist id="label-batches">
-              {shipments.map((shipment) => (
+              {shipments.map((shipment: (typeof shipments)[number]) => (
                 <option key={shipment.id} value={shipment.batchId}>
                   {shipment.customer.customerCode} / {shipment.customer.name}
                 </option>
@@ -73,21 +89,19 @@ export default async function LabelsPage() {
         </SectionCard>
 
         <SectionCard
-          title="Label Preview Types"
-          description="These match the old menu structure so we can verify missing behavior before polishing the print templates."
+          title="Mode Notes"
+          description="This keeps the legacy operator flow where the print mode is selected from the left navigation, not from a combined dashboard."
         >
           <div className="preview-card-grid">
             <article className="mini-preview-card">
-              <h4>Simple Label</h4>
-              <p>Customer code, batch, destination, and carton or pallet count.</p>
-            </article>
-            <article className="mini-preview-card">
-              <h4>Simple with Item Info</h4>
-              <p>Basic label plus product or carton detail from the item master.</p>
-            </article>
-            <article className="mini-preview-card">
-              <h4>Full Cases and Mixed Cases</h4>
-              <p>Case-aware print layout for pallet and mixed shipment handling.</p>
+              <h4>{viewTitle}</h4>
+              <p>
+                {view === "item"
+                  ? "Basic label plus product or carton detail from the item master."
+                  : view === "cases"
+                    ? "Case-aware print layout for pallet and mixed shipment handling."
+                    : "Customer code, batch, destination, and carton or pallet count."}
+              </p>
             </article>
           </div>
         </SectionCard>

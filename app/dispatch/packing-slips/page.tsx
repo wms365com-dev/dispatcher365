@@ -8,6 +8,7 @@ import { getPackingSlipsData } from "@/lib/server/dispatch-service";
 interface PackingSlipsPageProps {
   searchParams?: Promise<{
     customerLookup?: string;
+    view?: string;
   }>;
 }
 
@@ -64,6 +65,7 @@ function formatDate(value?: Date | null) {
 export default async function PackingSlipsPage({ searchParams }: PackingSlipsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const customerLookup = params?.customerLookup;
+  const view = params?.view === "list" ? "list" : "create";
   const packingData = await getPackingSlipsData(customerLookup);
   const customers = packingData.customers as PackingCustomer[];
   const carriers = packingData.carriers as PackingCarrier[];
@@ -89,15 +91,20 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
       <PageHeader
         eyebrow="Packing Slip"
         title="Add Packing"
-        description="Enter the shipment quickly, keep routing fields together, then move it straight into the packing queue."
+        description={
+          view === "list"
+            ? "Packing lookup follows the old separate list screen."
+            : "Enter the shipment quickly, then move it straight into the packing queue."
+        }
       />
 
-      <div className="legacy-page-grid">
-        <SectionCard
-          title="Use Form Input"
-          description="Built for fast dispatch entry. Fill the shipment, submit it, and it drops into the queue below."
-        >
-          <form action={createShipmentAction} className="legacy-form-grid">
+      {view === "create" ? (
+        <div className="legacy-page-grid">
+          <SectionCard
+            title="Use Form Input"
+            description="Built for fast dispatch entry. Fill the shipment and submit it."
+          >
+            <form action={createShipmentAction} className="legacy-form-grid">
             <label className="field">
               <span>Customer Number</span>
               <input name="customerCode" list="customer-codes" placeholder="BEAOUTNJ" required />
@@ -243,46 +250,47 @@ export default async function PackingSlipsPage({ searchParams }: PackingSlipsPag
                 </option>
               ))}
             </datalist>
-          </form>
-        </SectionCard>
+            </form>
+          </SectionCard>
 
+          <SectionCard
+            title="Use Excel File"
+            description="Bulk intake stays visible here because it is part of the original dispatch workflow."
+          >
+            <div className="note-list">
+              <p>Download a sample file, then upload a tenant-safe import file for packing slip intake.</p>
+              <ul>
+                <li>Download sample file placeholder</li>
+                <li>Bulk upload parser to be wired to the same shipment service</li>
+                <li>Current product defaults available: {products.length}</li>
+              </ul>
+            </div>
+          </SectionCard>
+        </div>
+      ) : (
         <SectionCard
-          title="Use Excel File"
-          description="Bulk intake stays visible here because it is part of the original dispatch workflow."
+          title="All Packing Slip"
+          description="This queue keeps the core columns the BOL and truck-run steps depend on."
         >
-          <div className="note-list">
-            <p>Download a sample file, then upload a tenant-safe import file for packing slip intake.</p>
-            <ul>
-              <li>Download sample file placeholder</li>
-              <li>Bulk upload parser to be wired to the same shipment service</li>
-              <li>Current product defaults available: {products.length}</li>
-            </ul>
-          </div>
+          <SimpleTable
+            columns={[
+              { key: "batchId", label: "Batch ID" },
+              { key: "customerNumber", label: "Customer number" },
+              { key: "customerPo", label: "Customer PO" },
+              { key: "orderNumber", label: "Order Number" },
+              { key: "startDate", label: "Start date" },
+              { key: "cancelDate", label: "Cancel date" },
+              { key: "salesPerson", label: "Sales Person" },
+              { key: "dateRevRouting", label: "Date Rev Routing" },
+              { key: "status", label: "Status" }
+            ]}
+            rows={rows}
+            emptyMessage="No packing slips have been entered yet."
+          />
         </SectionCard>
-      </div>
+      )}
 
-      <SectionCard
-        title="All Packing Slip"
-        description="This queue keeps the core columns the BOL and truck-run steps depend on."
-      >
-        <SimpleTable
-          columns={[
-            { key: "batchId", label: "Batch ID" },
-            { key: "customerNumber", label: "Customer number" },
-            { key: "customerPo", label: "Customer PO" },
-            { key: "orderNumber", label: "Order Number" },
-            { key: "startDate", label: "Start date" },
-            { key: "cancelDate", label: "Cancel date" },
-            { key: "salesPerson", label: "Sales Person" },
-            { key: "dateRevRouting", label: "Date Rev Routing" },
-            { key: "status", label: "Status" }
-          ]}
-          rows={rows}
-          emptyMessage="No packing slips have been entered yet."
-        />
-      </SectionCard>
-
-      {customerLookup ? (
+      {view === "list" && customerLookup ? (
         <SectionCard
           title="Customer Resolution"
           description="No exact customer match was found. Pick the closest tenant-owned customer or add the customer before retrying the packing slip."

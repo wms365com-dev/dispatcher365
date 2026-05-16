@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { PLATFORM_NAME } from "@/lib/branding";
@@ -133,6 +133,8 @@ export function AppShell({
   topbarActions
 }: AppShellProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentHref = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
   const isAdmin = roleKey === "PLATFORM_ADMIN" || roleKey === "TENANT_ADMIN";
   const utilityActions = (
     <>
@@ -158,28 +160,51 @@ export function AppShell({
         <nav className="dispatch-nav" aria-label="Dispatch modules">
           {dispatchNavigationSections.map((section) => (
             <div className="dispatch-nav__section" key={section.title}>
-              <p className="dispatch-nav__section-title">{section.title}</p>
+              {section.title ? <p className="dispatch-nav__section-title">{section.title}</p> : null}
               <div className="dispatch-nav__section-items">
                 {section.items
                   .filter((item) => (!item.adminOnly || isAdmin) && (!item.allowedRoles || item.allowedRoles.includes(roleKey)))
                   .map((item) => {
-                  const active = pathname === item.href;
+                  const childItems = (item.children ?? []).filter(
+                    (child) => !child.allowedRoles || child.allowedRoles.includes(roleKey)
+                  );
+                  const itemPath = item.href.split("?")[0];
+                  const activeChild = childItems.find((child) => child.href === currentHref);
+                  const active = Boolean(activeChild) || pathname === itemPath || currentHref === item.href;
 
                   return (
-                    <Link
-                      key={item.href}
-                      href={item.href as Route}
-                      title={item.description}
-                      className={`dispatch-nav__item${active ? " dispatch-nav__item--active" : ""}`}
-                    >
-                      <span className="dispatch-nav__badge">
-                        <DispatchIcon icon={item.icon} className="dispatch-nav__svg" />
-                      </span>
-                      <span>
-                        <strong>{item.label}</strong>
-                        <small>{item.description}</small>
-                      </span>
-                    </Link>
+                    <div key={item.href} className={`dispatch-nav__group${active ? " dispatch-nav__group--active" : ""}`}>
+                      <Link
+                        href={item.href as Route}
+                        title={item.description}
+                        className={`dispatch-nav__item dispatch-nav__item--parent${active ? " dispatch-nav__item--active" : ""}`}
+                      >
+                        <span className="dispatch-nav__badge">
+                          <DispatchIcon icon={item.icon} className="dispatch-nav__svg" />
+                        </span>
+                        <span className="dispatch-nav__label-row">
+                          <strong>{item.label}</strong>
+                          {childItems.length ? <span className="dispatch-nav__arrow">{active ? "▾" : "▸"}</span> : null}
+                        </span>
+                      </Link>
+                      {childItems.length ? (
+                        <div className="dispatch-nav__submenu">
+                          {childItems.map((child) => {
+                            const childActive = child.href === currentHref;
+
+                            return (
+                              <Link
+                                key={child.href}
+                                href={child.href as Route}
+                                className={`dispatch-nav__subitem${childActive ? " dispatch-nav__subitem--active" : ""}`}
+                              >
+                                {child.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

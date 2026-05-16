@@ -35,7 +35,15 @@ interface DriverRecord {
   } | null;
 }
 
-export default async function CarriersPage() {
+interface CarriersPageProps {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function CarriersPage({ searchParams }: CarriersPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const view = params?.view === "list" ? "list" : "create";
   const carriersData = await getCarriersData();
   const carriers = carriersData.carriers as CarrierRecord[];
   const drivers = carriersData.drivers as DriverRecord[];
@@ -67,183 +75,186 @@ export default async function CarriersPage() {
       <PageHeader
         eyebrow="Carriers"
         title="Carrier Info"
-        description="This now covers both the legacy carrier master and the new carrier-portal foundation: trucking company, drivers, portal users, and assigned runs."
+        description={
+          view === "list"
+            ? "Carrier lookup follows the old separate list screen."
+            : "Enter the trucking company details in the same two-column style the original system used."
+        }
       />
 
-      <div className="legacy-page-grid">
-        <SectionCard
-          title="Use Form Input"
-          description="Enter the trucking company details in the same two-column style the original system used."
-        >
-          <form action={createCarrierAction} className="legacy-form-grid">
-            <label className="field">
-              <span>Company Code</span>
-              <input name="carrierCode" placeholder="OLJ" required />
-            </label>
-            <label className="field">
-              <span>Cell</span>
-              <input name="cell" placeholder="4163335600" />
-            </label>
-            <label className="field">
-              <span>Name</span>
-              <input name="name" placeholder="Oljeje Transport" required />
-            </label>
-            <label className="field">
-              <span>Email</span>
-              <input name="email" type="email" placeholder="dispatch@example.com" />
-            </label>
-            <label className="field">
-              <span>Address</span>
-              <input name="address1" placeholder="5320 Finch Ave E Unit 7" />
-            </label>
-            <label className="field">
-              <span>Website</span>
-              <input name="website" placeholder="https://carrier.example.com" />
-            </label>
-            <label className="field">
-              <span>Address 2</span>
-              <input name="address2" placeholder="Dock or Suite" />
-            </label>
-            <label className="field">
-              <span>Website Pick Up</span>
-              <input name="websitePickup" placeholder="https://carrier.example.com/pickup" />
-            </label>
-            <label className="field">
-              <span>City</span>
-              <input name="city" placeholder="Scarborough" />
-            </label>
-            <label className="field">
-              <span>SCAC Code</span>
-              <input name="scac" placeholder="OLJT" />
-            </label>
-            <label className="field">
-              <span>State</span>
-              <input name="state" placeholder="ON" />
-            </label>
-            <label className="checkbox-field">
-              <input name="isLtl" type="checkbox" />
-              <span>LTL</span>
-            </label>
-            <label className="field">
-              <span>Zipcode</span>
-              <input name="postalCode" placeholder="M1S5G3" />
-            </label>
-            <label className="checkbox-field">
-              <input name="isFtl" type="checkbox" />
-              <span>FTL</span>
-            </label>
-            <label className="field">
-              <span>Telephone</span>
-              <input name="phone" placeholder="4163353600" />
-            </label>
-            <label className="checkbox-field">
-              <input name="isBroker" type="checkbox" />
-              <span>Broker</span>
-            </label>
-            <label className="field">
-              <span>Fax</span>
-              <input name="fax" placeholder="4163353610" />
-            </label>
-            <label className="field">
-              <span>Contact</span>
-              <input name="contactName" placeholder="Dispatch Desk" />
-            </label>
-            <div className="field field--wide form-actions">
-              <button className="button" type="submit">
-                Submit Form
-              </button>
-              <button className="button button--ghost" type="reset">
-                Reset
-              </button>
-            </div>
-          </form>
-        </SectionCard>
+      {view === "create" ? (
+        <div className="legacy-page-grid">
+          <SectionCard title="Use Form Input" description="Enter the carrier record first.">
+            <form action={createCarrierAction} className="legacy-form-grid">
+              <label className="field">
+                <span>Company Code</span>
+                <input name="carrierCode" placeholder="OLJ" required />
+              </label>
+              <label className="field">
+                <span>Cell</span>
+                <input name="cell" placeholder="4163335600" />
+              </label>
+              <label className="field">
+                <span>Name</span>
+                <input name="name" placeholder="Oljeje Transport" required />
+              </label>
+              <label className="field">
+                <span>Email</span>
+                <input name="email" type="email" placeholder="dispatch@example.com" />
+              </label>
+              <label className="field">
+                <span>Address</span>
+                <input name="address1" placeholder="5320 Finch Ave E Unit 7" />
+              </label>
+              <label className="field">
+                <span>Website</span>
+                <input name="website" placeholder="https://carrier.example.com" />
+              </label>
+              <label className="field">
+                <span>Address 2</span>
+                <input name="address2" placeholder="Dock or Suite" />
+              </label>
+              <label className="field">
+                <span>Website Pick Up</span>
+                <input name="websitePickup" placeholder="https://carrier.example.com/pickup" />
+              </label>
+              <label className="field">
+                <span>City</span>
+                <input name="city" placeholder="Scarborough" />
+              </label>
+              <label className="field">
+                <span>SCAC Code</span>
+                <input name="scac" placeholder="OLJT" />
+              </label>
+              <label className="field">
+                <span>State</span>
+                <input name="state" placeholder="ON" />
+              </label>
+              <label className="checkbox-field">
+                <input name="isLtl" type="checkbox" />
+                <span>LTL</span>
+              </label>
+              <label className="field">
+                <span>Zipcode</span>
+                <input name="postalCode" placeholder="M1S5G3" />
+              </label>
+              <label className="checkbox-field">
+                <input name="isFtl" type="checkbox" />
+                <span>FTL</span>
+              </label>
+              <label className="field">
+                <span>Telephone</span>
+                <input name="phone" placeholder="4163353600" />
+              </label>
+              <label className="checkbox-field">
+                <input name="isBroker" type="checkbox" />
+                <span>Broker</span>
+              </label>
+              <label className="field">
+                <span>Fax</span>
+                <input name="fax" placeholder="4163353610" />
+              </label>
+              <label className="field">
+                <span>Contact</span>
+                <input name="contactName" placeholder="Dispatch Desk" />
+              </label>
+              <div className="field field--wide form-actions">
+                <button className="button" type="submit">
+                  Submit Form
+                </button>
+                <button className="button button--ghost" type="reset">
+                  Reset
+                </button>
+              </div>
+            </form>
+          </SectionCard>
 
-        <SectionCard
-          title="Carriers List"
-          description="This list mirrors the old carrier lookup table and keeps the fields dispatch actually scans."
-        >
-          <SimpleTable
-            columns={[
-              { key: "code", label: "Code" },
-              { key: "companyName", label: "Company Name" },
-              { key: "address", label: "Address" },
-              { key: "city", label: "City" },
-              { key: "state", label: "State" },
-              { key: "postalCode", label: "Zipcode" },
-              { key: "tel", label: "Tel" },
-              { key: "cell", label: "Cell" },
-              { key: "email", label: "Email" },
-              { key: "portalUsers", label: "Portal Users" },
-              { key: "assignments", label: "Assigned Runs" }
-            ]}
-            rows={carrierRows}
-            emptyMessage="No carriers have been added for this tenant yet."
-          />
-        </SectionCard>
-      </div>
+          <SectionCard
+            title="Add Driver"
+            description="Drivers are set up here so they can be assigned later inside Truck Run."
+          >
+            <form action={createDriverAction} className="legacy-form-grid">
+              <label className="field">
+                <span>Driver Code</span>
+                <input name="driverCode" placeholder="LUIS" required />
+              </label>
+              <label className="field">
+                <span>Carrier Code</span>
+                <input name="carrierCode" list="carrier-codes" placeholder="OLJ" />
+              </label>
+              <label className="field">
+                <span>Full Name</span>
+                <input name="fullName" placeholder="Luis Rojas" required />
+              </label>
+              <label className="field">
+                <span>Phone</span>
+                <input name="phone" placeholder="9175550144" />
+              </label>
+              <label className="field">
+                <span>Email</span>
+                <input name="email" type="email" placeholder="driver@example.com" />
+              </label>
+              <div className="field field--wide form-actions">
+                <button className="button" type="submit">
+                  Submit Form
+                </button>
+                <button className="button button--ghost" type="reset">
+                  Reset
+                </button>
+              </div>
+              <datalist id="carrier-codes">
+                {carriers.map((carrier) => (
+                  <option key={carrier.id} value={carrier.carrierCode}>
+                    {carrier.name}
+                  </option>
+                ))}
+              </datalist>
+            </form>
+          </SectionCard>
+        </div>
+      ) : (
+        <div className="legacy-page-grid">
+          <SectionCard
+            title="Carriers List"
+            description="Carrier lookup is separated from entry so dispatch can scan the table directly."
+          >
+            <SimpleTable
+              columns={[
+                { key: "code", label: "Code" },
+                { key: "companyName", label: "Company Name" },
+                { key: "address", label: "Address" },
+                { key: "city", label: "City" },
+                { key: "state", label: "State" },
+                { key: "postalCode", label: "Zipcode" },
+                { key: "tel", label: "Tel" },
+                { key: "cell", label: "Cell" },
+                { key: "email", label: "Email" },
+                { key: "portalUsers", label: "Portal Users" },
+                { key: "assignments", label: "Assigned Runs" }
+              ]}
+              rows={carrierRows}
+              emptyMessage="No carriers have been added for this tenant yet."
+            />
+          </SectionCard>
 
-      <div className="legacy-page-grid">
-        <SectionCard
-          title="Drivers"
-          description="Drivers remain separate from carrier records so routes can be assigned and later synced to mobile."
-        >
-          <SimpleTable
-            columns={[
-              { key: "code", label: "Code" },
-              { key: "name", label: "Driver" },
-              { key: "carrier", label: "Carrier" },
-              { key: "phone", label: "Phone" },
-              { key: "email", label: "Email" }
-            ]}
-            rows={driverRows}
-            emptyMessage="No drivers have been added for this tenant yet."
-          />
-        </SectionCard>
-
-        <SectionCard
-          title="Add Driver"
-          description="This keeps the route-run assignment flow simple: pick a carrier, then pick the driver already attached to it."
-        >
-          <form action={createDriverAction} className="legacy-form-grid">
-            <label className="field">
-              <span>Driver Code</span>
-              <input name="driverCode" placeholder="LUIS" required />
-            </label>
-            <label className="field">
-              <span>Carrier Code</span>
-              <input name="carrierCode" list="carrier-codes" placeholder="OLJ" />
-            </label>
-            <label className="field">
-              <span>Full Name</span>
-              <input name="fullName" placeholder="Luis Rojas" required />
-            </label>
-            <label className="field">
-              <span>Phone</span>
-              <input name="phone" placeholder="9175550144" />
-            </label>
-            <label className="field">
-              <span>Email</span>
-              <input name="email" type="email" placeholder="driver@example.com" />
-            </label>
-            <div className="field field--wide form-actions">
-              <button className="button" type="submit">
-                Submit Form
-              </button>
-              <button className="button button--ghost" type="reset">
-                Reset
-              </button>
-            </div>
-            <datalist id="carrier-codes">
-              {carriers.map((carrier) => (
-                <option key={carrier.id} value={carrier.carrierCode}>
-                  {carrier.name}
-                </option>
-              ))}
-            </datalist>
-          </form>
-        </SectionCard>
-      </div>
+          <SectionCard
+            title="Drivers"
+            description="Drivers stay close to the carrier lookup because they feed truck run assignment."
+          >
+            <SimpleTable
+              columns={[
+                { key: "code", label: "Code" },
+                { key: "name", label: "Driver" },
+                { key: "carrier", label: "Carrier" },
+                { key: "phone", label: "Phone" },
+                { key: "email", label: "Email" }
+              ]}
+              rows={driverRows}
+              emptyMessage="No drivers have been added for this tenant yet."
+            />
+          </SectionCard>
+        </div>
+      )}
     </>
   );
 }

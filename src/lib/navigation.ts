@@ -1,10 +1,11 @@
 export interface DispatchNavigationItem {
   href: string;
   label: string;
-  shortLabel: string;
-  description: string;
+  shortLabel?: string;
+  description?: string;
   adminOnly?: boolean;
   allowedRoles?: string[];
+  children?: DispatchNavigationItem[];
   icon:
     | "home"
     | "briefcase"
@@ -27,13 +28,11 @@ export interface DispatchNavigationSection {
 
 export const dispatchNavigationSections: DispatchNavigationSection[] = [
   {
-    title: "Operations",
+    title: "",
     items: [
       {
         href: "/dispatch",
         label: "Main Screen",
-        shortLabel: "MS",
-        description: "Tenant dashboard and queue summary.",
         allowedRoles: [
           "PLATFORM_ADMIN",
           "TENANT_ADMIN",
@@ -47,58 +46,114 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
         icon: "home"
       },
       {
-        href: "/dispatch/packing-slips",
+        href: "/dispatch/packing-slips?view=create",
         label: "Packing Slip",
-        shortLabel: "PS",
-        description: "Enter packing slips and review shipment intake.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
+        children: [
+          {
+            href: "/dispatch/packing-slips?view=create",
+            label: "Enter Packings Slip",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
+            icon: "briefcase"
+          },
+          {
+            href: "/dispatch/packing-slips?view=list",
+            label: "Packings List",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
+            icon: "briefcase"
+          }
+        ],
         icon: "briefcase"
       },
       {
-        href: "/dispatch/carton-info",
+        href: "/dispatch/carton-info?view=create",
         label: "Carton Info",
-        shortLabel: "CI",
-        description: "Carton master, dimensions, and label source data.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+        children: [
+          {
+            href: "/dispatch/carton-info?view=create",
+            label: "Enter Data",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+            icon: "boxes"
+          },
+          {
+            href: "/dispatch/carton-info?view=list",
+            label: "Carton Info",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+            icon: "boxes"
+          }
+        ],
         icon: "boxes"
       },
       {
         href: "/dispatch/bols",
         label: "BOL",
-        shortLabel: "BL",
-        description: "Batch lookup, BOL generation, and print staging.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
         icon: "file"
       },
       {
-        href: "/dispatch/customers",
+        href: "/dispatch/customers?view=create",
         label: "Customer",
-        shortLabel: "CU",
-        description: "Customer master data and lookup workflow.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
+        children: [
+          {
+            href: "/dispatch/customers?view=create",
+            label: "Enter Customer Info",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
+            icon: "customer"
+          },
+          {
+            href: "/dispatch/customers?view=list",
+            label: "Customer Lookup",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
+            icon: "customer"
+          }
+        ],
         icon: "customer"
       },
       {
-        href: "/dispatch/sales-reps",
+        href: "/dispatch/sales-reps?view=create",
         label: "Sales Rep",
-        shortLabel: "SR",
-        description: "Sales rep master data from the legacy app.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "CUSTOMER_SERVICE"],
+        children: [
+          {
+            href: "/dispatch/sales-reps?view=create",
+            label: "Enter Sales Rep",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "CUSTOMER_SERVICE"],
+            icon: "sales"
+          },
+          {
+            href: "/dispatch/sales-reps?view=list",
+            label: "Sales Rep List",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "CUSTOMER_SERVICE"],
+            icon: "sales"
+          }
+        ],
         icon: "sales"
       },
       {
-        href: "/dispatch/carriers",
+        href: "/dispatch/carriers?view=create",
         label: "Carriers",
-        shortLabel: "CR",
-        description: "Carrier directory plus driver assignment.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
+        children: [
+          {
+            href: "/dispatch/carriers?view=create",
+            label: "Enter Carriers",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
+            icon: "carrier"
+          },
+          {
+            href: "/dispatch/carriers?view=list",
+            label: "Carriers List",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
+            icon: "carrier"
+          }
+        ],
         icon: "carrier"
       },
       {
-        href: "/dispatch/routes",
+        href: "/dispatch/routes?view=create",
         label: "Truck Run",
-        shortLabel: "TR",
-        description: "Route planning, run sheets, and publish flow.",
         allowedRoles: [
           "PLATFORM_ADMIN",
           "TENANT_ADMIN",
@@ -107,41 +162,76 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
           "CARRIER_DISPATCHER",
           "DRIVER"
         ],
-        icon: "route"
-      },
-      {
-        href: "/dispatch/assignments",
-        label: "Assignments",
-        shortLabel: "AS",
-        description: "Carrier acceptance, driver handoff, tracking number, and live route ownership.",
-        allowedRoles: [
-          "PLATFORM_ADMIN",
-          "TENANT_ADMIN",
-          "DISPATCHER",
-          "CARRIER_ADMIN",
-          "CARRIER_DISPATCHER",
-          "DRIVER"
+        children: [
+          {
+            href: "/dispatch/routes?view=create",
+            label: "Add truck run",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER"],
+            icon: "route"
+          },
+          {
+            href: "/dispatch/routes?view=list",
+            label: "View list added",
+            allowedRoles: [
+              "PLATFORM_ADMIN",
+              "TENANT_ADMIN",
+              "DISPATCHER",
+              "CARRIER_ADMIN",
+              "CARRIER_DISPATCHER",
+              "DRIVER"
+            ],
+            icon: "route"
+          },
+          {
+            href: "/dispatch/routes/delivered-history",
+            label: "Delivered orders",
+            allowedRoles: [
+              "PLATFORM_ADMIN",
+              "TENANT_ADMIN",
+              "DISPATCHER",
+              "CARRIER_ADMIN",
+              "CARRIER_DISPATCHER",
+              "DRIVER"
+            ],
+            icon: "route"
+          }
         ],
         icon: "route"
       },
       {
-        href: "/dispatch/labels",
+        href: "/dispatch/labels?view=simple",
         label: "Print Label",
-        shortLabel: "PL",
-        description: "Carton and pallet label output queue.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+        children: [
+          {
+            href: "/dispatch/labels?view=simple",
+            label: "Simple Label",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+            icon: "printer"
+          },
+          {
+            href: "/dispatch/labels?view=item",
+            label: "Simple with Item info",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+            icon: "printer"
+          },
+          {
+            href: "/dispatch/labels?view=cases",
+            label: "Full cases and mixed cases",
+            allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
+            icon: "printer"
+          }
+        ],
         icon: "printer"
       }
     ]
   },
   {
-    title: "Execution",
+    title: "",
     items: [
       {
         href: "/dispatch/deliveries",
         label: "Delivered Orders",
-        shortLabel: "DO",
-        description: "Proof of delivery, exceptions, and route completion.",
         allowedRoles: [
           "PLATFORM_ADMIN",
           "TENANT_ADMIN",
@@ -155,42 +245,34 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
     ]
   },
   {
-    title: "Utilities",
+    title: "",
     items: [
       {
         href: "/dispatch/search",
         label: "Search",
-        shortLabel: "SE",
-        description: "Cross-record lookup for customers, batches, and orders.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE", "CUSTOMER_SERVICE"],
         icon: "search"
       },
       {
         href: "/dispatch/freight",
         label: "Freight Tools",
-        shortLabel: "FT",
-        description: "Density, cube, and freight class calculations.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN", "DISPATCHER", "WAREHOUSE"],
         icon: "calculator"
       }
     ]
   },
   {
-    title: "Administration",
+    title: "",
     items: [
       {
         href: "/dispatch/users",
         label: "User Manage",
-        shortLabel: "UM",
-        description: "User roles, approvals, and tenant membership.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN"],
         icon: "customer"
       },
       {
         href: "/dispatch/issues",
         label: "Issue Inbox",
-        shortLabel: "II",
-        description: "Admin-only bug reports and workflow issues stored in the database.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN"],
         icon: "file",
         adminOnly: true
@@ -198,8 +280,6 @@ export const dispatchNavigationSections: DispatchNavigationSection[] = [
       {
         href: "/dispatch/companies",
         label: "Company Manage",
-        shortLabel: "CM",
-        description: "Company records and warehouse setup.",
         allowedRoles: ["PLATFORM_ADMIN", "TENANT_ADMIN"],
         icon: "briefcase"
       }

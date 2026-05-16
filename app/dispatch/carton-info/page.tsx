@@ -8,10 +8,18 @@ function formatMeasure(value?: number | null) {
   return typeof value === "number" ? value.toFixed(2) : "-";
 }
 
-export default async function CartonInfoPage() {
+interface CartonInfoPageProps {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function CartonInfoPage({ searchParams }: CartonInfoPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const view = params?.view === "list" ? "list" : "create";
   const { products } = await getCartonInfoData();
 
-  const rows = products.map((product) => ({
+  const rows = products.map((product: (typeof products)[number]) => ({
     sku: product.sku,
     description: product.description,
     packageType: product.packageType ?? "-",
@@ -29,13 +37,13 @@ export default async function CartonInfoPage() {
       <PageHeader
         eyebrow="Carton Info"
         title="Item Info"
-        description="This rebuild keeps the dedicated carton master from the old system so freight calculations and label output come from structured item data."
+        description={view === "list" ? "Item lookup follows the old separate carton information screen." : "Enter the carton or item profile once, then reuse it for labels and freight defaults."}
       />
 
-      <div className="legacy-page-grid">
+      {view === "create" ? (
         <SectionCard
           title="Use Form Input"
-          description="Enter the item or carton profile once, then reuse it for packing slip defaults and label output."
+          description="Enter the item or carton profile once, then reuse it for packing defaults and label output."
         >
           <form action={createProductAction} className="legacy-form-grid">
             <label className="field">
@@ -96,10 +104,10 @@ export default async function CartonInfoPage() {
             </div>
           </form>
         </SectionCard>
-
+      ) : (
         <SectionCard
           title="Carton Info"
-          description="The old item table was dense and operational. This version keeps the same spirit while cleaning up the data model."
+          description="Carton lookup is kept separate from entry like the old system."
         >
           <SimpleTable
             columns={[
@@ -115,7 +123,7 @@ export default async function CartonInfoPage() {
             emptyMessage="No carton or item profiles have been entered yet."
           />
         </SectionCard>
-      </div>
+      )}
     </>
   );
 }

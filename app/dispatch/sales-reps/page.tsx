@@ -4,10 +4,18 @@ import { SimpleTable } from "@/components/simple-table";
 import { createSalesRepAction } from "@/lib/server/dispatch-actions";
 import { getSalesRepsData } from "@/lib/server/dispatch-service";
 
-export default async function SalesRepsPage() {
+interface SalesRepsPageProps {
+  searchParams?: Promise<{
+    view?: string;
+  }>;
+}
+
+export default async function SalesRepsPage({ searchParams }: SalesRepsPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const view = params?.view === "list" ? "list" : "create";
   const { salesReps } = await getSalesRepsData();
 
-  const rows = salesReps.map((salesRep) => ({
+  const rows = salesReps.map((salesRep: (typeof salesReps)[number]) => ({
     code: salesRep.repCode,
     name: salesRep.fullName,
     email: salesRep.email ?? "-",
@@ -20,13 +28,13 @@ export default async function SalesRepsPage() {
       <PageHeader
         eyebrow="Sales Rep"
         title="Sales Info"
-        description="The old system used a dedicated sales rep module. This rebuild keeps that master data separate so packing slip entry can use clean lookups instead of loose text."
+        description={view === "list" ? "Sales rep lookup follows the old separate list screen." : "Enter sales rep records once, then reuse the code during packing entry."}
       />
 
-      <div className="legacy-page-grid">
+      {view === "create" ? (
         <SectionCard
           title="Use Form Input"
-          description="Enter the sales rep once, then reuse the code across packing slips, BOLs, and customer communication."
+          description="Enter the sales rep once, then reuse the code across packing slips and BOLs."
         >
           <form action={createSalesRepAction} className="legacy-form-grid">
             <label className="field">
@@ -55,10 +63,10 @@ export default async function SalesRepsPage() {
             </div>
           </form>
         </SectionCard>
-
+      ) : (
         <SectionCard
           title="Sales Rep List"
-          description="This lines up with the old sales lookup table and keeps rep code, name, and contact details together."
+          description="Rep lookup is kept separate from entry like the old system."
         >
           <SimpleTable
             columns={[
@@ -72,7 +80,7 @@ export default async function SalesRepsPage() {
             emptyMessage="No sales reps have been added for this tenant yet."
           />
         </SectionCard>
-      </div>
+      )}
     </>
   );
 }
