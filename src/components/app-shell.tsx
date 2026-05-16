@@ -13,6 +13,7 @@ interface AppShellProps {
   tenantName: string;
   tenantSlug: string;
   userEmail: string;
+  userName: string;
   roleKey: string;
   roleLabel: string;
   topbarActions?: ReactNode;
@@ -128,6 +129,7 @@ export function AppShell({
   tenantName,
   tenantSlug,
   userEmail,
+  userName,
   roleKey,
   roleLabel,
   topbarActions
@@ -216,14 +218,25 @@ export function AppShell({
       <header className="dispatch-topbar">
         <div />
         <div className="dispatch-topbar__right">
-          <div className="dispatch-topbar__meta">
-            <span className="dispatch-user__name">{userEmail}</span>
-            <span className="dispatch-user__detail">
-              {roleLabel.replaceAll("_", " ")} | {tenantSlug}
-            </span>
-          </div>
-          <div className="dispatch-topbar__actions">{utilityActions}</div>
-          {topbarActions ? <div className="dispatch-topbar__actions">{topbarActions}</div> : null}
+          <details className="dispatch-user-menu">
+            <summary className="dispatch-user-menu__summary">
+              <span className="dispatch-user__name">{userName}</span>
+              <span className="dispatch-user-menu__caret">▾</span>
+            </summary>
+            <div className="dispatch-user-menu__panel">
+              <div className="dispatch-user-menu__identity">
+                <strong>{userName}</strong>
+                <span>{userEmail}</span>
+                <small>
+                  {roleLabel.replaceAll("_", " ")} | {tenantSlug}
+                </small>
+              </div>
+              <div className="dispatch-user-menu__actions">
+                {utilityActions}
+                {topbarActions}
+              </div>
+            </div>
+          </details>
         </div>
       </header>
 
