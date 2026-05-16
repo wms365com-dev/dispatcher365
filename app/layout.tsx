@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { CanonicalAppHostRedirect } from "@/components/canonical-app-host-redirect";
 import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/branding";
 
 import "./globals.css";
@@ -17,7 +18,10 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CanonicalAppHostRedirect />
+        {children}
+      </body>
     </html>
   );
 }
