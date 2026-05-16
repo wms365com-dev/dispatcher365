@@ -7,6 +7,7 @@ import { getCustomersData } from "@/lib/server/dispatch-service";
 
 interface CustomersPageProps {
   searchParams?: Promise<{
+    customerLookup?: string;
     view?: string;
   }>;
 }
@@ -14,6 +15,7 @@ interface CustomersPageProps {
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const view = params?.view === "list" ? "list" : "create";
+  const customerLookup = params?.customerLookup?.trim() ?? "";
   const { customers } = await getCustomersData();
 
   const rows = customers.map((customer: (typeof customers)[number]) => ({
@@ -30,18 +32,18 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
     <>
       <PageHeader
         eyebrow="Customer"
-        title="Customer Info"
+        title={view === "list" ? "Customer Info" : "Add new Customer"}
         description={
           view === "list"
-            ? "Customer lookup follows the old separate lookup screen."
-            : "Enter the customer first, then reuse the code during packing slip and BOL work."
+            ? ""
+            : ""
         }
       />
 
       {view === "create" ? (
         <SectionCard
           title="Use Form Input"
-          description="The old customer screen captured billing and ship-to details in one entry form."
+          description=""
         >
           <form action={createCustomerAction} className="legacy-form-grid">
             <label className="field">
@@ -73,7 +75,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
               <input name="shipToCode" placeholder="Optional ship-to code" />
             </label>
             <label className="field">
-              <span>Name</span>
+              <span>Ship To Name</span>
               <input name="shipToName" placeholder="WG Pro-Manufacturing Inc" />
             </label>
             <label className="field field--wide">
@@ -136,31 +138,46 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         </SectionCard>
       ) : (
         <>
-          <SectionCard
-            title="Customer List"
-            description="Customer lookup is separated from entry so dispatchers can scan without the form sitting beside it."
-          >
-            <SimpleTable
-              columns={[
-                { key: "code", label: "Customer number" },
-                { key: "name", label: "Name" },
-                { key: "address", label: "Address" },
-                { key: "city", label: "City" },
-                { key: "postalCode", label: "Zipcode" },
-                { key: "tel", label: "Tel" },
-                { key: "email", label: "Email" }
-              ]}
-              rows={rows}
-              emptyMessage="No customers have been added for this tenant yet."
-            />
-          </SectionCard>
+          <div className="legacy-lookup-grid">
+            <SectionCard title="Consignee Info" description="">
+              <form className="legacy-mini-lookup" method="get">
+                <input name="view" type="hidden" value="list" />
+                <label className="field">
+                  <span>Customer Number</span>
+                  <input
+                    defaultValue={customerLookup}
+                    name="customerLookup"
+                    placeholder="Enter Customer Number"
+                  />
+                </label>
+                <button className="button" type="submit">
+                  Show Customer
+                </button>
+              </form>
+            </SectionCard>
 
-          <SectionCard
-            title="Closest Match Preview"
-            description="This keeps the add-or-select customer helper close to the lookup screen."
-          >
-            <CustomerResolutionDemo customers={customers} />
-          </SectionCard>
+            <SectionCard title="Customer List" description="">
+              <SimpleTable
+                columns={[
+                  { key: "code", label: "Customer number" },
+                  { key: "name", label: "Name" },
+                  { key: "address", label: "Address" },
+                  { key: "city", label: "City" },
+                  { key: "postalCode", label: "Zipcode" },
+                  { key: "tel", label: "Tel" },
+                  { key: "email", label: "Email" }
+                ]}
+                rows={rows}
+                emptyMessage="No customers have been added for this tenant yet."
+              />
+            </SectionCard>
+          </div>
+
+          {customerLookup ? (
+            <SectionCard title="Closest Match Preview" description="">
+              <CustomerResolutionDemo customers={customers} />
+            </SectionCard>
+          ) : null}
         </>
       )}
     </>

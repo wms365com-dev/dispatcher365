@@ -24,7 +24,7 @@ export function PageHeader({ eyebrow, title, description, action }: PageHeaderPr
         </div>
         {action ? <div>{action}</div> : null}
       </div>
-      <p className="page-header__description">{description}</p>
+      {description ? <p className="page-header__description">{description}</p> : null}
     </div>
   );
 }

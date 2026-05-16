@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/page-header";
 import { SectionCard } from "@/components/section-card";
 import { SimpleTable } from "@/components/simple-table";
 import { StatusPill } from "@/components/status-pill";
-import { TruckRunWorkspaceLinks } from "@/components/truck-run-workspace-links";
 import { TruckRunStagingWorkspace } from "@/components/truck-run-staging-workspace";
 import {
   publishRouteRunAction
@@ -49,6 +48,7 @@ interface RouteStopRecord {
   status: string;
   shipment: {
     batchId: string;
+    pallets: number;
     customer: {
       customerCode: string;
       city?: string | null;
@@ -61,10 +61,12 @@ interface RouteRunRecord {
   id: string;
   routeDate: Date;
   routeName: string;
+  truckCount: number;
   status: string;
   mobileSyncAt?: Date | null;
   carrier?: {
     carrierCode: string;
+    name: string;
   } | null;
   driver?: {
     fullName: string;
@@ -110,7 +112,6 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   const mobileAlerts = routesData.mobileAlerts as RouteAlertRecord[];
   const assignments = routesData.assignments as RouteAssignmentRecord[];
   const routeIssue = routesData.routeIssue;
-  const emailConfigured = routesData.emailConfigured;
   const isInternalRole = internalRoles.includes(context.role);
 
   const candidateRows = routeCandidates.map((shipment) => ({
@@ -124,79 +125,56 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
   }));
 
   const routeRows = routes.map((route) => ({
-    tracking:
-      assignments.find((assignment) => assignment.routeRunId === route.id)?.trackingNumber ?? "Pending",
-    manifest: (
-      <Link className="table-link" href={`/dispatch/routes/${route.id}/manifest`}>
-        View manifest
-      </Link>
-    ),
     date: formatDate(route.routeDate),
-    routeName: route.routeName,
-    carrier: route.carrier?.carrierCode ?? "Unassigned",
-    driver: route.driver?.fullName ?? "Unassigned",
+    carrier: route.carrier?.name ?? route.carrier?.carrierCode ?? "Unassigned",
+    trucks: String(route.truckCount),
+    pallets: String(
+      route.stops.reduce((sum, stop) => sum + stop.shipment.pallets, 0)
+    ),
     stops: String(route.stops.length),
-    alerts: String(mobileAlerts.filter((alert) => alert.routeRunId === route.id).length),
-    assignment:
-      assignments.find((assignment) => assignment.routeRunId === route.id)?.status.replaceAll("_", " ") ?? "Pending offer",
-    stopStatusSummary:
-      route.stops.length === 0
-        ? "No stops"
-        : `${route.stops.filter((stop) => ["DELIVERED", "REFUSED", "RETURNED", "EXCEPTION"].includes(stop.status)).length}/${route.stops.length} complete`,
-    status: <StatusPill status={route.status} />,
-    mobile: route.mobileSyncAt ? formatDate(route.mobileSyncAt) : "Pending",
-    action:
-      route.status === "DRAFT" ? (
-        <form action={publishRouteRunAction}>
-          <input type="hidden" name="routeRunId" value={route.id} />
-          <button className="button button--small" type="submit">
-            Publish
-          </button>
-        </form>
-      ) : (
-        <span className="helper-text">Published</span>
-      )
+    tools: (
+      <div className="table-action-stack">
+        <Link className="table-link" href={`/dispatch/routes/${route.id}/manifest`}>
+          View manifest
+        </Link>
+        {route.status === "DRAFT" ? (
+          <form action={publishRouteRunAction}>
+            <input type="hidden" name="routeRunId" value={route.id} />
+            <button className="button button--small" type="submit">
+              Publish
+            </button>
+          </form>
+        ) : (
+          <span className="helper-text">
+            <StatusPill status={route.status} />
+          </span>
+        )}
+        {assignments.find((assignment) => assignment.routeRunId === route.id)?.trackingNumber ? (
+          <span className="helper-text">
+            Tracking {assignments.find((assignment) => assignment.routeRunId === route.id)?.trackingNumber}
+          </span>
+        ) : null}
+        {mobileAlerts.filter((alert) => alert.routeRunId === route.id).length ? (
+          <span className="helper-text">
+            Alerts {mobileAlerts.filter((alert) => alert.routeRunId === route.id).length}
+          </span>
+        ) : null}
+      </div>
+    )
   }));
 
   return (
     <>
       <PageHeader
         eyebrow="Truck run"
-        title="Truck Run Planning"
-        description={
-          view === "list"
-            ? "Truck run list and manifest follow the old separate list screen."
-            : isInternalRole
-              ? "Group BOL-created batches, assign a carrier, and build the run sheet."
-              : "Review assigned runs, open the manifest, and work through jobs and delivery history."
-        }
+        title={view === "list" ? "Trucks List" : "Add new Truck Run"}
+        description=""
       />
 
-      <SectionCard
-        title="Truck Run Workspaces"
-        description="The old system split planning, assignment, jobs, and history into separate screens. Those workspaces are back here so dispatchers, carriers, and drivers can move through the module more directly."
-      >
-        <TruckRunWorkspaceLinks activeHref="/dispatch/routes" roleKey={context.role} />
-      </SectionCard>
-
       {routeIssue ? (
-        <SectionCard
-          title="Route Planning Notice"
-          description="The route form only accepts batches that already have a generated BOL and are not yet routed."
-        >
+        <SectionCard title="Route Planning Notice" description="">
           <p className="helper-text">
             No eligible batches were found for that route request. Create the BOL first, then assign the batch to a route.
-          </p>
-        </SectionCard>
-      ) : null}
-
-      {!emailConfigured ? (
-        <SectionCard
-          title="Email Setup Notice"
-          description="Truck run email is wired into the workflow now, but SMTP needs to be configured in Railway before carriers can receive manifests."
-        >
-          <p className="helper-text">
-            Add <strong>SMTP_HOST</strong>, <strong>SMTP_PORT</strong>, <strong>SMTP_FROM</strong>, and credentials in Railway to enable Email to Carrier.
           </p>
         </SectionCard>
       ) : null}
@@ -208,10 +186,7 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
           drivers={drivers}
         />
       ) : (
-        <SectionCard
-          title="Execution Notes"
-          description="Carriers and drivers do not need the planning form. Use the workspaces above to accept offered loads, assign drivers, start routes, and review delivery progress."
-        >
+        <SectionCard title="Execution Notes" description="">
           <ul className="note-list">
             <li>`Run Planning` shows only the route runs assigned to your carrier or driver account.</li>
             <li>`Packing Available` is the old active-jobs screen.</li>
@@ -221,65 +196,20 @@ export default async function RoutesPage({ searchParams }: RoutesPageProps) {
       )}
 
       {view === "list" ? (
-        <>
-          <SectionCard
-            title="Route Runs"
-            description="Draft routes can be reviewed and published from this list."
-          >
-            <SimpleTable
-              columns={[
-                { key: "tracking", label: "Tracking" },
-                { key: "manifest", label: "Manifest" },
-                { key: "date", label: "Date" },
-                { key: "routeName", label: "Route" },
-                { key: "carrier", label: "Carrier" },
-                { key: "driver", label: "Driver" },
-                { key: "stops", label: "Stops" },
-                { key: "alerts", label: "Alerts" },
-                { key: "assignment", label: "Assignment" },
-                { key: "stopStatusSummary", label: "Stop Progress" },
-                { key: "status", label: "Status" },
-                { key: "mobile", label: "Mobile Sync" },
-                { key: "action", label: "Action" }
-              ]}
-              rows={routeRows}
-              emptyMessage="No route runs have been created yet."
-            />
-          </SectionCard>
-
-          <SectionCard
-            title="Route Stop Preview"
-            description="Each run keeps ordered stops so the manifest and mobile workflow use the same data."
-          >
-            <div className="stack-grid">
-              {routes.map((route) => (
-                <article className="route-card" key={route.id}>
-                  <div className="route-card__header">
-                    <div>
-                      <p className="kicker">{formatDate(route.routeDate)}</p>
-                      <h4>{route.routeName}</h4>
-                    </div>
-                    <StatusPill status={route.status} />
-                  </div>
-                  <ul className="route-stop-list">
-                    {route.stops.map((stop) => (
-                      <li key={stop.id}>
-                        <strong>Stop {stop.stopNumber}</strong>
-                        <span>
-                          {stop.shipment.batchId} / {stop.shipment.customer.customerCode} / {stop.shipment.customer.city},{" "}
-                          {stop.shipment.customer.state}
-                        </span>
-                        <span>
-                          <StatusPill status={stop.status} />
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </SectionCard>
-        </>
+        <SectionCard title="Trucks List" description="">
+          <SimpleTable
+            columns={[
+              { key: "date", label: "Run Date" },
+              { key: "carrier", label: "Carrier Name" },
+              { key: "trucks", label: "Trucks Total" },
+              { key: "pallets", label: "Pallets Total" },
+              { key: "stops", label: "Stops Total" },
+              { key: "tools", label: "Tools" }
+            ]}
+            rows={routeRows}
+            emptyMessage="No route runs have been created yet."
+          />
+        </SectionCard>
       ) : null}
     </>
   );

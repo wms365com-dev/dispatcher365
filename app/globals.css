@@ -398,6 +398,7 @@ ul {
 
 .summary-grid,
 .split-grid,
+.legacy-lookup-grid,
 .legacy-page-grid,
 .workflow-grid,
 .three-up,
@@ -412,8 +413,13 @@ ul {
 }
 
 .split-grid,
+.legacy-lookup-grid,
 .legacy-page-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.legacy-lookup-grid {
+  grid-template-columns: 280px minmax(0, 1fr);
 }
 
 .three-up,
@@ -466,6 +472,15 @@ ul {
 .table-action-stack {
   display: grid;
   gap: 8px;
+}
+
+.legacy-mini-lookup {
+  display: grid;
+  gap: 12px;
+}
+
+.legacy-mini-lookup .button {
+  width: 100%;
 }
 
 .inline-form {

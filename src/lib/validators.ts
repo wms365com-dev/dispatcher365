@@ -138,7 +138,7 @@ export const shipmentLegacyStatusUpdateSchema = z.object({
 });
 
 export const routeCreateSchema = z.object({
-  routeName: z.string().trim().min(3),
+  routeName: optionalText,
   routeDate: z.string().trim().min(1),
   carrierCode: optionalText.transform((value) => value?.toUpperCase()),
   driverCode: optionalText.transform((value) => value?.toUpperCase()),

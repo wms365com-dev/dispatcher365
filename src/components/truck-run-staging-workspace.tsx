@@ -113,7 +113,6 @@ export function TruckRunStagingWorkspace({
       <section className="surface section-card">
         <div className="section-card__header">
           <h3>Use Form Input</h3>
-          <p>Double-click batch IDs from the packing list below or type them here manually.</p>
         </div>
 
         <form action={createRouteRunAction} className="legacy-form-grid">
@@ -125,17 +124,10 @@ export function TruckRunStagingWorkspace({
             <span>Delivery Date</span>
             <input name="routeDate" type="date" required />
           </label>
-          <label className="field">
-            <span>Route Name</span>
-            <input name="routeName" placeholder="Morning Run" required />
-          </label>
-          <label className="field">
-            <span>Driver Code</span>
-            <input name="driverCode" list="route-drivers" placeholder="Optional driver" />
-          </label>
 
           <div className="field field--wide">
             <div className="legacy-bol-stage__head">
+              <span className="legacy-bol-stage__label">Add Packing</span>
               <span className="legacy-bol-stage__label">Use</span>
               <input
                 className="legacy-bol-stage__use"
@@ -156,6 +148,8 @@ export function TruckRunStagingWorkspace({
                 />
               ))}
             </div>
+            <input name="routeName" type="hidden" value="" />
+            <input name="driverCode" type="hidden" value="" />
             <input type="hidden" name="batchIds" value={selectedBatchIds.join(",")} />
             {notice ? <p className="legacy-bol-stage__notice">{notice}</p> : null}
           </div>
@@ -196,7 +190,6 @@ export function TruckRunStagingWorkspace({
       <section className="surface section-card">
         <div className="section-card__header">
           <h3>All Packing Slip</h3>
-          <p>Double-click a batch ID to add it to the truck run like the old system.</p>
         </div>
 
         <div className="legacy-bol-table-tools">

@@ -1599,6 +1599,7 @@ export async function createRouteRun(input: unknown) {
   const data = routeCreateSchema.parse(input);
   const { tenantId, user } = await getTenantScope();
   const batchIds = parseBatchIds(data.batchIds);
+  const routeDate = new Date(data.routeDate);
 
   const [carrier, driver, shipments] = await Promise.all([
     data.carrierCode
@@ -1635,11 +1636,16 @@ export async function createRouteRun(input: unknown) {
     return null;
   }
 
+  const fallbackRouteName = [data.carrierCode ?? "TRUCK RUN", data.routeDate]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
   const routeRun = await prisma.routeRun.create({
     data: {
       tenantId,
-      routeName: data.routeName,
-      routeDate: new Date(data.routeDate),
+      routeName: data.routeName ?? fallbackRouteName,
+      routeDate,
       carrierId: carrier?.id ?? driver?.carrierId ?? undefined,
       driverId: driver?.id,
       createdById: user.id,
@@ -1668,7 +1674,7 @@ export async function createRouteRun(input: unknown) {
     data: {
       status: "ROUTED",
       legacyStatusLabel: "ROUTED",
-      routedDate: new Date(data.routeDate),
+      routedDate: routeDate,
       carrierId: carrier?.id ?? driver?.carrierId ?? undefined
     }
   });
