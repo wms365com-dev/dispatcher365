@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { PLATFORM_NAME } from "@/lib/branding";
 import { dispatchNavigationSections } from "@/lib/navigation";
 
 interface AppShellProps {
@@ -150,7 +151,7 @@ export function AppShell({
     <div className="dispatch-shell">
       <aside className="dispatch-rail">
         <div className="dispatch-brand">
-          <div className="dispatch-brand__eyebrow">WMS 365</div>
+          <div className="dispatch-brand__eyebrow">{PLATFORM_NAME.toUpperCase()}</div>
           <div className="dispatch-brand__title">{tenantName}</div>
         </div>
 

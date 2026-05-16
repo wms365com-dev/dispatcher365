@@ -1,6 +1,6 @@
-# WMS 365 Dispatch Modern App
+# Ship365 Dispatch Modern App
 
-This folder contains the first working phase of the Next.js + TypeScript rebuild for WMS 365 Dispatch.
+This folder contains the first working phase of the Next.js + TypeScript rebuild for Ship365 Dispatch.
 
 ## What is included
 
@@ -29,7 +29,7 @@ New public pages:
 
 ## Demo access
 
-- Email: `dispatch@wms365.co`
+- Email: `dispatch@ship365.co`
 - Password: `Dispatch123!`
 
 ## Railway deployment
@@ -64,7 +64,7 @@ Recommended Railway env values:
 - `DATABASE_URL=<Railway Postgres connection string>`
 - `AUTH_SECRET=<long-random-secret>`
 - `ENABLE_DEMO_SEED=true`
-- `NEXT_PUBLIC_APP_URL=https://dispatcher365-production.up.railway.app`
+- `NEXT_PUBLIC_APP_URL=https://app.ship365.co`
 - `STRIPE_PRICE_ID_STARTER=<Stripe recurring starter price id>`
 - `STRIPE_PRICE_ID_GROWTH=<Stripe recurring growth price id>`
 
@@ -83,7 +83,7 @@ Useful endpoints after deploy:
 ## Notes
 
 - The core dispatch pages now read and write real PostgreSQL data through Prisma.
-- The app auto-seeds a demo tenant (`wms365-demo`) and dispatch user on first run so the workflow can be tested immediately.
+- The app auto-seeds a demo tenant (`ship365-demo`) and dispatch user on first run so the workflow can be tested immediately.
 - Demo seeding is controlled by `ENABLE_DEMO_SEED`; leave it on locally and turn it off in production.
 - Sign-in is now session-based, so the dispatch workspace redirects to `/sign-in` until a valid session exists.
 - BOL email send, truck run manifest print/email, and issue reporting are now wired into the real workflow.

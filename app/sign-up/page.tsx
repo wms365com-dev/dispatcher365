@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PRODUCT_NAME } from "@/lib/branding";
 import { signUpAction } from "@/lib/server/account-actions";
 import { getCurrentSession } from "@/lib/server/auth";
 
@@ -35,7 +36,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
     <main className="auth-page">
       <section className="auth-hero">
         <p className="kicker">Start your tenant</p>
-        <h1>Launch WMS 365 Dispatch</h1>
+        <h1>Launch {PRODUCT_NAME}</h1>
         <p className="auth-copy">
           Create your company workspace, get a 14-day free trial, and start running shipments,
           BOLs, truck runs, and delivery execution in one tenant-safe system.

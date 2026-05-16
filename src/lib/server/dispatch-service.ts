@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_PRODUCTION_APP_URL } from "@/lib/branding";
 import {
   bolGenerateSchema,
   carrierCreateSchema,
@@ -93,7 +94,11 @@ function deliveryLegacyStatusLabel(eventType: string) {
 }
 
 function getAppBaseUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "https://dispatcher365-production.up.railway.app";
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.APP_URL ??
+    (process.env.NODE_ENV === "production" ? DEFAULT_PRODUCTION_APP_URL : "http://localhost:3000")
+  );
 }
 
 function formatDateLabel(value: Date) {

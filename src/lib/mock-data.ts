@@ -9,11 +9,12 @@ import type {
   ShipmentLine,
   Tenant
 } from "@/lib/types";
+import { PRODUCT_NAME } from "@/lib/branding";
 
 export const tenant: Tenant = {
-  id: "tenant-wms365-demo",
-  slug: "wms365-demo",
-  name: "WMS 365 Dispatch Demo"
+  id: "tenant-ship365-demo",
+  slug: "ship365-demo",
+  name: `${PRODUCT_NAME} Demo`
 };
 
 export const customers: Customer[] = [

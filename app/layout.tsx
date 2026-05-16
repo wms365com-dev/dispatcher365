@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/lib/branding";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WMS 365 Dispatch",
-  description: "Workbook-driven freight operations rebuilt as a modern web app."
+  title: PRODUCT_NAME,
+  description: PRODUCT_DESCRIPTION
 };
 
 interface RootLayoutProps {

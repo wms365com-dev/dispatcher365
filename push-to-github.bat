@@ -52,7 +52,7 @@ if "%~1"=="" (
   set COMMIT_MSG=%~1
 )
 
-if "%COMMIT_MSG%"=="" set COMMIT_MSG=Update WMS 365 Dispatch
+if "%COMMIT_MSG%"=="" set COMMIT_MSG=Update Ship365 Dispatch
 
 git -c safe.directory="%CD%" diff --cached --quiet
 if errorlevel 1 (

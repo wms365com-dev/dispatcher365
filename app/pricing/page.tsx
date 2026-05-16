@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PRODUCT_NAME } from "@/lib/branding";
 import { getConfiguredPricingPlans } from "@/lib/server/billing";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default function PricingPage() {
       <section className="tenant-panel surface">
         <div className="tenant-panel__header">
           <p className="kicker">Pricing</p>
-          <h1>WMS 365 Dispatch plans</h1>
+          <h1>{PRODUCT_NAME} plans</h1>
           <p>
             Start with a 14-day free trial, then move into the plan that matches your shipment volume and dispatch team size.
           </p>

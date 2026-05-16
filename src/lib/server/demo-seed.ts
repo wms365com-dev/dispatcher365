@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEMO_USER_EMAIL } from "@/lib/branding";
 import {
   buildBolNumber,
   buildVicsBolNumber,
@@ -41,7 +42,7 @@ const demoTenantSeeds = [
 ] as const;
 
 const demoUserSeed = {
-  email: "dispatch@wms365.co",
+  email: DEMO_USER_EMAIL,
   fullName: "Dispatch Admin"
 };
 

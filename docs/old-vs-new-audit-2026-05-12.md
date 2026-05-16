@@ -4,7 +4,7 @@ Date: 2026-05-12
 Comparison target:
 
 - Old: `https://www.aesonretailsolutions.com`
-- New: `https://dispatcher365-production.up.railway.app`
+- New: `https://app.ship365.co`
 - Tenant used: `Healtea`
 
 Goal:

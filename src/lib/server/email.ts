@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 
+import { PRODUCT_NAME } from "@/lib/branding";
 import { prisma } from "@/lib/prisma";
 import { getAppBaseUrl } from "@/lib/server/billing";
 
@@ -151,13 +152,13 @@ export async function sendPasswordResetEmail(input: {
 
   return sendSystemEmail({
     toEmail: input.toEmail,
-    subject: "Reset your WMS 365 Dispatch password",
+    subject: `Reset your ${PRODUCT_NAME} password`,
     htmlBody: `
       <div style="font-family: Arial, Helvetica, sans-serif; color: #243746; line-height: 1.55;">
         <h2 style="margin-bottom: 8px;">Reset your password</h2>
         <p style="margin: 0 0 12px;">Hi ${input.fullName},</p>
         <p style="margin: 0 0 12px;">
-          We received a request to reset your WMS 365 Dispatch password. This link will expire in 1 hour.
+          We received a request to reset your ${PRODUCT_NAME} password. This link will expire in 1 hour.
         </p>
         <p style="margin: 0 0 16px;">
           <a href="${resetUrl}" style="display: inline-block; padding: 10px 16px; background: #0a7fb0; color: #ffffff; text-decoration: none; border-radius: 4px;">

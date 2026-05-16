@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PRODUCT_NAME } from "@/lib/branding";
 import { signInAction } from "@/lib/server/auth-actions";
 import { getCurrentSession } from "@/lib/server/auth";
 import {
@@ -19,7 +20,7 @@ interface SignInPageProps {
 export const dynamic = "force-dynamic";
 
 const errorMessages: Record<string, string> = {
-  "invalid-credentials": "The email or password did not match an account in WMS 365 Dispatch.",
+  "invalid-credentials": `The email or password did not match an account in ${PRODUCT_NAME}.`,
   "no-tenant-access": "This user does not belong to a tenant yet."
 };
 
@@ -44,7 +45,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     <main className="auth-page">
       <section className="auth-hero">
         <p className="kicker">Warehouse + freight operations</p>
-        <h1>WMS 365 Dispatch</h1>
+        <h1>{PRODUCT_NAME}</h1>
         <p className="auth-copy">
           Rebuilt from the legacy workbook and 10-year-old dispatch site into a tenant-safe web
           application for shipments, BOLs, route runs, and driver handoff.
@@ -60,7 +61,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <p>Shipment intake feeds BOL generation, then route planning, then publish-to-driver.</p>
           </article>
           <article className="auth-feature">
-            <h3>Railway-ready backend</h3>
+            <h3>Scalable backend</h3>
             <p>SQLite-first structure is already aligned so we can move to PostgreSQL later without rebuilding the app model.</p>
           </article>
         </div>
@@ -73,7 +74,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           <p>
             {demoSeedingEnabled
               ? "Use the seeded demo account below for local testing while we keep building."
-              : "Sign in with a valid WMS 365 Dispatch account."}
+              : `Sign in with a valid ${PRODUCT_NAME} account.`}
           </p>
         </div>
 
@@ -104,7 +105,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             />
           </label>
           <button className="button auth-submit" type="submit">
-            Sign in to WMS 365 Dispatch
+            Sign in to {PRODUCT_NAME}
           </button>
         </form>
 

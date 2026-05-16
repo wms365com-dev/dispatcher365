@@ -1,4 +1,4 @@
-# WMS 365 Dispatch Rebuild Gap Checklist
+# Ship365 Dispatch Rebuild Gap Checklist
 
 Date: 2026-05-13
 
@@ -6,7 +6,7 @@ Source of truth used for this checklist:
 
 - Old live Laravel app in [C:\livesite](/C:/livesite)
 - Old live production behavior on `aesonretailsolutions.com`
-- New Railway app on `dispatcher365-production.up.railway.app`
+- New Railway app on `app.ship365.co`
 - Audit notes in [old-vs-new-audit-2026-05-12.md](/E:/aesonretailsolutions/modern-app/docs/old-vs-new-audit-2026-05-12.md)
 
 ## Status legend

@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 
+import { DEFAULT_PRODUCTION_APP_URL } from "@/lib/branding";
 import { getPricingPlans, getSelfServePricingPlan } from "@/lib/pricing";
 
 export const TRIAL_LENGTH_DAYS = 14;
@@ -34,7 +35,11 @@ export type BillingTenantSnapshot = {
 };
 
 export function getAppBaseUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL ?? "http://localhost:3000";
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.APP_URL ??
+    (process.env.NODE_ENV === "production" ? DEFAULT_PRODUCTION_APP_URL : "http://localhost:3000")
+  );
 }
 
 export function stripeBillingConfigured() {

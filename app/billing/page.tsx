@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PRODUCT_NAME, SUPPORT_EMAIL } from "@/lib/branding";
 import {
   openBillingPortalAction,
   startBillingCheckoutAction
@@ -144,7 +145,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                   </form>
                 ) : (
                   <div className="billing-actions">
-                    <a className="button button--secondary" href="mailto:hello@wms365.co?subject=WMS%20365%20Dispatch%20Enterprise%20Pricing">
+                    <a
+                      className="button button--secondary"
+                      href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`${PRODUCT_NAME} Enterprise Pricing`)}`}
+                    >
                       {plan.ctaLabel}
                     </a>
                   </div>
