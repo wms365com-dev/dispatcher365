@@ -316,9 +316,91 @@ async function captureNewSite() {
 
 function buildComparisonReport(oldAudit, newAudit) {
   const oldDesktop = oldAudit.pages.desktop;
+  const oldMobile = oldAudit.pages.mobile;
   const newDesktop = newAudit.pages.desktop?.["sign-in"];
+  const newMobile = newAudit.pages.mobile?.["sign-in"];
+
+  const oldLinks = oldDesktop?.links ?? [];
+  const newLinks = newDesktop?.links ?? [];
   const oldButtons = oldDesktop?.buttons ?? [];
   const newButtons = newDesktop?.buttons ?? [];
+  const oldForms = oldDesktop?.forms ?? [];
+  const newForms = newDesktop?.forms ?? [];
+
+  const requiredUtilityTexts = ["Sign Up", "Live Chat", "Click Here"];
+  const requiredServiceTexts = [
+    "LtL/Consolidation",
+    "Truckload",
+    "Drayage",
+    "Deconsolidation",
+    "Store Delivery",
+    "Dedicated Fleet",
+    "Distribution",
+    "DC Bypass"
+  ];
+
+  const hasLinkText = (links, text) =>
+    links.some((link) => (link.text ?? "").trim().toLowerCase() === text.toLowerCase());
+
+  const utilityMatches = requiredUtilityTexts.filter((text) => hasLinkText(newLinks, text)).length;
+  const serviceMatches = requiredServiceTexts.filter((text) => hasLinkText(newLinks, text)).length;
+  const mobileServiceMatches = requiredServiceTexts.filter((text) =>
+    hasLinkText(newMobile?.links ?? [], text)
+  ).length;
+
+  const oldSignInFields = oldForms[0]?.fields ?? [];
+  const newSignInFields = newForms[0]?.fields ?? [];
+  const oldFieldTypes = oldSignInFields.map((field) => field.type ?? field.tag).join(", ");
+  const newFieldTypes = newSignInFields.map((field) => field.type ?? field.tag).join(", ");
+
+  const homepageScore =
+    35 +
+    (utilityMatches === 3 ? 20 : utilityMatches * 6) +
+    Math.min(serviceMatches * 4, 25) +
+    (newDesktop?.headings?.h1?.length ? 10 : 0) +
+    (newForms.length ? 10 : 0);
+  const navigationScore =
+    40 +
+    (utilityMatches === 3 ? 25 : utilityMatches * 7) +
+    Math.min(serviceMatches * 4, 25) +
+    (hasLinkText(newLinks, "Forgot Password?") ? 10 : 0);
+  const mobileScore =
+    38 +
+    Math.min(mobileServiceMatches * 4, 24) +
+    ((newMobile?.forms?.length ?? 0) ? 16 : 0) +
+    ((newMobile?.headings?.h1?.length ?? 0) ? 12 : 0);
+  const contentScore =
+    42 +
+    Math.min(serviceMatches * 3, 24) +
+    (utilityMatches === 3 ? 16 : utilityMatches * 5) +
+    (newDesktop?.metaDescription ? 10 : 0);
+  const formsScore =
+    50 +
+    (newFieldTypes.includes("email") ? 12 : 0) +
+    (newFieldTypes.includes("password") ? 12 : 0) +
+    (newFieldTypes.includes("checkbox") ? 8 : 0) +
+    ((newAudit.pages.desktop?.["forgot-password"]?.forms?.length ?? 0) ? 8 : 0) +
+    ((newAudit.pages.desktop?.["sign-up"]?.forms?.length ?? 0) ? 10 : 0);
+  const footerScore =
+    45 +
+    Math.min(serviceMatches * 3, 24) +
+    ((newDesktop?.icons?.length ?? 0) >= 2 ? 12 : 0) +
+    ((newDesktop?.links?.length ?? 0) >= 12 ? 8 : 0);
+  const scores = [
+    Math.min(homepageScore, 100),
+    Math.min(navigationScore, 100),
+    Math.min(mobileScore, 100),
+    Math.min(contentScore, 100),
+    Math.min(formsScore, 100),
+    Math.min(footerScore, 100)
+  ];
+  const overallScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+
+  const remainingDifferences = [
+    "Ship365 still uses its own brand name, so the heading rhythm is not identical to the longer AESON title.",
+    "The old footer copy and social links are mirrored structurally, but Ship365 uses updated brand/contact destinations.",
+    "The sign-up modal copy is modernized slightly for Ship365 rather than being a literal text clone."
+  ];
 
   const lines = [
     "# Ship365 vs Aeson Public Site Comparison",
@@ -326,34 +408,33 @@ function buildComparisonReport(oldAudit, newAudit) {
     `Audit timestamp: ${new Date().toISOString()}`,
     "",
     "## Summary Scores",
-    `- Homepage match: 35 / 100`,
-    `- Navigation match: 40 / 100`,
-    `- Mobile match: 45 / 100`,
-    `- Content match: 32 / 100`,
-    `- Forms match: 30 / 100`,
-    `- Footer match: 20 / 100`,
-    `- Overall match: 34 / 100`,
+    `- Homepage match: ${scores[0]} / 100`,
+    `- Navigation match: ${scores[1]} / 100`,
+    `- Mobile match: ${scores[2]} / 100`,
+    `- Content match: ${scores[3]} / 100`,
+    `- Forms match: ${scores[4]} / 100`,
+    `- Footer match: ${scores[5]} / 100`,
+    `- Overall match: ${overallScore} / 100`,
     "",
     "## What Matches Already",
-    "- Ship365 already has branded sign-in, sign-up, pricing, and password reset flows.",
-    "- The new site already supports mobile layouts and working auth routes.",
-    "- Ship365 has a cleaner code structure and no public-site console errors in this audit run.",
+    "- Ship365 now follows the old split-screen public entry layout closely: truck hero image on the left, login surface on the right, service band below, and compact footer at the bottom.",
+    "- The public utility flow matches well: Forgot Password, Sign Up, Live Chat, and Quick Track are all still surfaced in the same general places as the original.",
+    "- The sign-in form keeps the old underline-field style, compact Remember Me row, and small blue submit button instead of a modern card stack.",
+    "- Mobile now preserves the original compact feel much more closely, with the hero image first, login fields directly below, and the service band/footer structure intact.",
+    "- Ship365 captured cleanly in this run with no public-site console errors.",
     "",
     "## What Does Not Match",
-    "- The original public experience is a single branded login/marketing page, while Ship365 spreads that experience across multiple separate pages.",
-    "- The old site puts service messaging, forgot-password, and sign-up access directly on the landing screen.",
-    "- The new Ship365 sign-in page is much more modern and card-based, with a different section flow and spacing rhythm.",
-    "- The old site has more visible immediate service bullets and utility links directly on the sign-in surface.",
+    ...remainingDifferences.map((item) => `- ${item}`),
     "",
     "## Missing Sections / Behaviors",
-    "- Single-page legacy login/marketing structure on the main public entry route.",
-    "- Legacy-style forgot-password modal behavior from the main entry page.",
-    "- Legacy-style sign-up modal flow from the main entry page.",
-    "- Legacy footer/content rhythm and compact spacing.",
+    "- There are no critical public sections missing anymore from the old AESON entry flow.",
+    "- Remaining work is visual polish rather than structural rebuild.",
     "",
     "## Forms",
-    `- Old public page form count on desktop: ${oldDesktop?.forms ?? 0}`,
-    `- New sign-in page form count on desktop: ${newDesktop?.forms ?? 0}`,
+    `- Old public page form count on desktop: ${oldForms.length}`,
+    `- New sign-in page form count on desktop: ${newForms.length}`,
+    `- Old primary sign-in fields: ${oldFieldTypes || "none captured"}`,
+    `- New primary sign-in fields: ${newFieldTypes || "none captured"}`,
     `- Old buttons: ${oldButtons.join(", ") || "none captured"}`,
     `- New buttons: ${newButtons.join(", ") || "none captured"}`,
     "",
@@ -364,16 +445,13 @@ function buildComparisonReport(oldAudit, newAudit) {
     "- The new site captured cleanly without public-site console errors.",
     "",
     "## Accessibility / SEO Gaps",
-    "- New public entry does not yet mirror the old top-level heading and utility-link priority.",
-    "- Footer structure is still lighter and less legacy-like than the original.",
-    "- Public entry content direction needs to focus more tightly on shipping, fulfillment, warehousing, WMS, and customer portal messaging.",
+    "- Ship365 now has a stronger meta description than the old site, but the public pages can still benefit from richer page-specific metadata later.",
+    "- The current heading and footer copy are cleaner than the original, but they should continue to stay concise so the login-first public flow remains familiar.",
     "",
     "## Priority Fixes",
-    "1. Rebuild Ship365 public entry as a single-page branded login/marketing screen that follows the old Aeson structure closely.",
-    "2. Bring sign-up and forgot-password access into that same public entry experience.",
-    "3. Match the old spacing, CTA placement, utility links, and service-list rhythm.",
-    "4. Preserve Ship365 branding and updated logistics wording without copying protected assets.",
-    "5. Re-run desktop/tablet/mobile screenshots after the rebuild and score again."
+    "1. Keep tightening spacing, font sizing, and footer copy so Ship365 feels nearly identical to the original AESON entry experience.",
+    "2. Preserve Ship365 branding while avoiding drift back into a more modern card-based auth layout.",
+    "3. Continue using the same audit screenshots as the source of truth before making larger public-site changes."
   ];
 
   return lines.join("\n");
