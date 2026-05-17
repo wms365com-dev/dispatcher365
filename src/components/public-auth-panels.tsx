@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PRODUCT_NAME } from "@/lib/branding";
+import { PLATFORM_NAME, PRODUCT_NAME } from "@/lib/branding";
 import { signInAction } from "@/lib/server/auth-actions";
 import {
   requestPasswordResetAction,
@@ -23,7 +23,7 @@ export function PublicSignInPanel({
 }: PublicSignInPanelProps) {
   return (
     <div className="legacy-auth">
-      <h1>{PRODUCT_NAME.toUpperCase()}</h1>
+      <h1>{PLATFORM_NAME.toUpperCase()}</h1>
 
       {errorMessage ? (
         <p className="legacy-auth__message legacy-auth__message--error">{errorMessage}</p>
@@ -89,7 +89,7 @@ interface PublicForgotPanelProps {
 export function PublicForgotPanel({ sent }: PublicForgotPanelProps) {
   return (
     <div className="legacy-auth legacy-auth--forgot">
-      <h1>{PRODUCT_NAME.toUpperCase()}</h1>
+      <h1>{PLATFORM_NAME.toUpperCase()}</h1>
       <h2>Forgot Password ?</h2>
       <p className="legacy-auth__tagline legacy-auth__tagline--compact">
         Enter your e-mail address below to reset your password.
@@ -131,7 +131,7 @@ export function PublicResetPanel({
 }: PublicResetPanelProps) {
   return (
     <div className="legacy-auth legacy-auth--forgot">
-      <h1>{PRODUCT_NAME.toUpperCase()}</h1>
+      <h1>{PLATFORM_NAME.toUpperCase()}</h1>
       <h2>Reset Password</h2>
       <p className="legacy-auth__tagline legacy-auth__tagline--compact">
         Reset links are one-time use and expire after one hour.
