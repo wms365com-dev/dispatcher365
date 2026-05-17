@@ -1367,8 +1367,8 @@ ul {
 .legacy-public__panel {
   display: grid;
   align-content: start;
-  gap: 42px;
-  padding: 82px 48px 42px;
+  gap: 34px;
+  padding: 74px 48px 42px;
 }
 
 .legacy-public__utility-grid {
@@ -1455,16 +1455,17 @@ ul {
 
 .legacy-auth {
   display: grid;
-  gap: 28px;
+  gap: 24px;
   max-width: 560px;
 }
 
 .legacy-auth h1 {
   color: #465b6e;
-  font-size: clamp(3.6rem, 4.4vw, 4.8rem);
+  font-size: clamp(3rem, 3.6vw, 4.1rem);
   font-weight: 400;
-  letter-spacing: -0.03em;
-  line-height: 0.98;
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+  max-width: 14ch;
 }
 
 .legacy-auth h2 {
@@ -1518,6 +1519,22 @@ ul {
 .legacy-auth__field span {
   color: #8e9cad;
   font-size: 0.9rem;
+}
+
+.legacy-auth__field--placeholder-only {
+  gap: 0;
+}
+
+.legacy-auth__field--placeholder-only span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .legacy-auth__field input {
@@ -1805,7 +1822,7 @@ ul {
   }
 
   .legacy-public__panel {
-    padding: 56px 42px 34px;
+    padding: 58px 42px 34px;
   }
 
   .legacy-modal {
@@ -1863,7 +1880,8 @@ ul {
   }
 
   .legacy-public__panel {
-    padding: 40px 34px 30px;
+    gap: 30px;
+    padding: 38px 34px 30px;
   }
 
   .legacy-modal__form {
@@ -1951,28 +1969,85 @@ ul {
     padding: 18px;
   }
 
-  .legacy-auth__field-row {
-    grid-template-columns: 1fr;
+  .legacy-auth {
     gap: 20px;
   }
 
-  .legacy-auth__action-row,
-  .legacy-auth__forgot-actions,
+  .legacy-auth h1 {
+    font-size: clamp(2.5rem, 8vw, 3.2rem);
+    max-width: 10ch;
+  }
+
+  .legacy-auth__field-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+
+  .legacy-auth__action-row {
+    align-items: center;
+    justify-content: space-between;
+  }
+
   .legacy-auth__sign-in-actions,
+  .legacy-auth__forgot-actions {
+    align-items: center;
+    flex-direction: row;
+  }
+
   .legacy-modal__cta,
   .legacy-modal__footer {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .legacy-auth__submit,
-  .legacy-auth__back,
   .legacy-modal__reset {
     width: 100%;
   }
 
   .legacy-modal__close-button {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .legacy-auth__field-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .legacy-auth__submit,
+  .legacy-auth__back {
+    min-width: 88px;
+  }
+}
+
+@media (max-width: 480px) {
+  .legacy-public__panel {
+    padding: 32px 28px 28px;
+  }
+
+  .legacy-auth h1 {
+    font-size: 2.3rem;
+    max-width: 11ch;
+  }
+
+  .legacy-auth__field-row {
+    gap: 14px;
+  }
+
+  .legacy-auth__field span,
+  .legacy-auth__remember,
+  .legacy-auth__sign-in-actions a,
+  .legacy-auth__forgot-actions a {
+    font-size: 0.82rem;
+  }
+
+  .legacy-auth__submit,
+  .legacy-auth__back {
+    min-width: 78px;
+    min-height: 33px;
+    padding: 0 12px;
+    font-size: 0.9rem;
   }
 }
 

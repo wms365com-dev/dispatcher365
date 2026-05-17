@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PLATFORM_NAME, PRODUCT_NAME } from "@/lib/branding";
+import { PRODUCT_NAME } from "@/lib/branding";
 import { signInAction } from "@/lib/server/auth-actions";
 import {
   requestPasswordResetAction,
@@ -23,7 +23,7 @@ export function PublicSignInPanel({
 }: PublicSignInPanelProps) {
   return (
     <div className="legacy-auth">
-      <h1>{PLATFORM_NAME.toUpperCase()}</h1>
+      <h1>{PRODUCT_NAME.toUpperCase()}</h1>
 
       {errorMessage ? (
         <p className="legacy-auth__message legacy-auth__message--error">{errorMessage}</p>
@@ -46,7 +46,6 @@ export function PublicSignInPanel({
               }
               name="email"
               type="email"
-              placeholder="Email"
               required
             />
           </label>
@@ -60,7 +59,6 @@ export function PublicSignInPanel({
               }
               name="password"
               type="password"
-              placeholder="Password"
               required
             />
           </label>
@@ -91,7 +89,7 @@ interface PublicForgotPanelProps {
 export function PublicForgotPanel({ sent }: PublicForgotPanelProps) {
   return (
     <div className="legacy-auth legacy-auth--forgot">
-      <h1>{PLATFORM_NAME.toUpperCase()}</h1>
+      <h1>{PRODUCT_NAME.toUpperCase()}</h1>
       <h2>Forgot Password ?</h2>
       <p className="legacy-auth__tagline legacy-auth__tagline--compact">
         Enter your e-mail address below to reset your password.
@@ -104,7 +102,7 @@ export function PublicForgotPanel({ sent }: PublicForgotPanelProps) {
       ) : null}
 
       <form action={requestPasswordResetAction} className="legacy-auth__forgot-form">
-        <label className="legacy-auth__field legacy-auth__field--single">
+        <label className="legacy-auth__field legacy-auth__field--single legacy-auth__field--placeholder-only">
           <span>Email</span>
           <input name="email" type="email" placeholder="Email" required />
         </label>
@@ -133,7 +131,7 @@ export function PublicResetPanel({
 }: PublicResetPanelProps) {
   return (
     <div className="legacy-auth legacy-auth--forgot">
-      <h1>{PLATFORM_NAME.toUpperCase()}</h1>
+      <h1>{PRODUCT_NAME.toUpperCase()}</h1>
       <h2>Reset Password</h2>
       <p className="legacy-auth__tagline legacy-auth__tagline--compact">
         Reset links are one-time use and expire after one hour.
@@ -145,7 +143,7 @@ export function PublicResetPanel({
 
       <form action={resetPasswordAction} className="legacy-auth__forgot-form">
         <input name="token" type="hidden" value={token} />
-        <label className="legacy-auth__field legacy-auth__field--single">
+        <label className="legacy-auth__field legacy-auth__field--single legacy-auth__field--placeholder-only">
           <span>New Password</span>
           <input
             name="password"
@@ -155,7 +153,7 @@ export function PublicResetPanel({
             required
           />
         </label>
-        <label className="legacy-auth__field legacy-auth__field--single">
+        <label className="legacy-auth__field legacy-auth__field--single legacy-auth__field--placeholder-only">
           <span>Confirm Password</span>
           <input
             name="confirmPassword"
@@ -209,9 +207,9 @@ export function PublicSignUpModal({ errorMessage }: PublicSignUpModalProps) {
             </button>
             <div className="legacy-modal__avatar-note">
               <p>
-                <strong>NOTE!</strong> Keep your company and warehouse details close to the
-                way your dispatch team already works so the move into {PRODUCT_NAME} feels
-                familiar from day one.
+                <strong>NOTE!</strong> Image preview is optional here. The important part is
+                keeping your company, billing, and warehouse details lined up with how your
+                team already ships today so the move into {PRODUCT_NAME} feels familiar from day one.
               </p>
             </div>
           </div>
