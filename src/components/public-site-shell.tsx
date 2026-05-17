@@ -1,5 +1,3 @@
-import type { Route } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
 
 import {
@@ -8,21 +6,21 @@ import {
 } from "@/lib/branding";
 
 const serviceLinks = [
-  { label: "LtL/Consolidation", href: "/sign-up" as Route },
-  { label: "Truckload", href: "/sign-up" as Route },
-  { label: "Drayage", href: "/sign-up" as Route },
-  { label: "Deconsolidation", href: "/sign-up" as Route },
-  { label: "Store Delivery", href: "/sign-up" as Route },
-  { label: "Dedicated Fleet", href: "/sign-up" as Route },
-  { label: "Distribution", href: "/sign-up" as Route },
-  { label: "DC Bypass", href: "/sign-up" as Route }
+  { label: "LtL/Consolidation", href: "/sign-up" },
+  { label: "Truckload", href: "/sign-up" },
+  { label: "Drayage", href: "/sign-up" },
+  { label: "Deconsolidation", href: "/sign-up" },
+  { label: "Store Delivery", href: "/sign-up" },
+  { label: "Dedicated Fleet", href: "/sign-up" },
+  { label: "Distribution", href: "/sign-up" },
+  { label: "DC Bypass", href: "/sign-up" }
 ];
 
 const utilityLinks = [
   {
     prompt: "No account?",
     label: "Sign Up",
-    href: "/sign-up" as Route,
+    href: "/sign-up",
     external: false
   },
   {
@@ -34,7 +32,7 @@ const utilityLinks = [
   {
     prompt: "Quick Track",
     label: "Click Here",
-    href: "/sign-in" as Route,
+    href: "/sign-in",
     external: false
   }
 ];
@@ -79,11 +77,7 @@ export function PublicSiteShell({ children, overlay }: PublicSiteShellProps) {
             {utilityLinks.map((item) => (
               <div className="legacy-public__utility" key={item.label}>
                 <p>{item.prompt}</p>
-                {item.external ? (
-                  <a href={item.href}>{item.label}</a>
-                ) : (
-                  <Link href={item.href}>{item.label}</Link>
-                )}
+                <a href={item.href}>{item.label}</a>
               </div>
             ))}
           </div>
@@ -91,9 +85,9 @@ export function PublicSiteShell({ children, overlay }: PublicSiteShellProps) {
 
         <div className="legacy-public__services">
           {serviceLinks.map((item) => (
-            <Link href={item.href} key={item.label}>
+            <a href={item.href} key={item.label}>
               {item.label}
-            </Link>
+            </a>
           ))}
         </div>
 
@@ -102,9 +96,9 @@ export function PublicSiteShell({ children, overlay }: PublicSiteShellProps) {
             <a aria-label="Ship365 on Facebook" href={`mailto:${SUPPORT_EMAIL}`}>
               <FacebookIcon />
             </a>
-            <Link aria-label="Ship365 updates" href="/pricing">
+            <a aria-label="Ship365 updates" href="/pricing">
               <TwitterIcon />
-            </Link>
+            </a>
           </div>
 
           <p>Copyright &copy; {PLATFORM_NAME}</p>
