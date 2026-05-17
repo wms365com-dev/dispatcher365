@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import bcrypt from "bcryptjs";
 
 const PASSWORD_KEY_LENGTH = 64;
 
@@ -12,6 +13,10 @@ export function createPasswordHash(password: string) {
 export function verifyPasswordHash(password: string, storedHash?: string | null) {
   if (!storedHash) {
     return false;
+  }
+
+  if (isLegacyBcryptHash(storedHash)) {
+    return verifyLegacyBcryptHash(password, storedHash);
   }
 
   const [salt, expectedHash] = storedHash.split(":");
@@ -28,4 +33,18 @@ export function verifyPasswordHash(password: string, storedHash?: string | null)
   }
 
   return timingSafeEqual(actual, expected);
+}
+
+export function isLegacyBcryptHash(storedHash?: string | null) {
+  return Boolean(storedHash && /^\$2[aby]\$/.test(storedHash));
+}
+
+export function verifyLegacyBcryptHash(password: string, storedHash: string) {
+  const normalizedHash = storedHash.replace(/^\$2y\$/, "$2b$");
+
+  try {
+    return bcrypt.compareSync(password, normalizedHash);
+  } catch {
+    return false;
+  }
 }
