@@ -67,7 +67,13 @@ async function ensureStripeCustomer(input: {
 }
 
 export async function signUpAction(formData: FormData) {
-  const raw = signUpSchema.parse(toFormObject(formData));
+  const parsed = signUpSchema.safeParse(toFormObject(formData));
+
+  if (!parsed.success) {
+    redirect("/sign-up?error=validation");
+  }
+
+  const raw = parsed.data;
   const tenantSlug = raw.companySlug || buildTenantSlug(raw.companyName);
   const billingEmail = raw.billingEmail ?? raw.email;
 
@@ -98,7 +104,14 @@ export async function signUpAction(formData: FormData) {
       trialEndsAt: buildTrialEndDate(now),
       billingStatus: "TRIALING",
       accessState: "ACTIVE",
-      warehousePhone: raw.phone
+      warehouseName: raw.warehouseName ?? raw.companyName,
+      warehouseAddress1: raw.warehouseAddress1,
+      warehouseAddress2: raw.warehouseAddress2,
+      warehouseCity: raw.warehouseCity,
+      warehouseState: raw.warehouseState,
+      warehousePostalCode: raw.warehousePostalCode,
+      warehouseCountry: raw.warehouseCountry,
+      warehousePhone: raw.warehousePhone ?? raw.phone
     }
   });
 

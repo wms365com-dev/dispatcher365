@@ -212,8 +212,20 @@ export const signUpSchema = z.object({
   fullName: z.string().trim().min(2),
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
   password: z.string().trim().min(8),
+  confirmPassword: z.string().trim().min(8),
   billingEmail: optionalEmail,
-  phone: optionalText
+  phone: optionalText,
+  warehousePhone: optionalText,
+  warehouseName: optionalText,
+  warehouseAddress1: optionalText,
+  warehouseAddress2: optionalText,
+  warehouseCity: optionalText,
+  warehouseState: optionalText.transform((value) => value?.toUpperCase()),
+  warehousePostalCode: optionalText,
+  warehouseCountry: optionalText.transform((value) => value?.toUpperCase() ?? "US")
+}).refine((value) => value.password === value.confirmPassword, {
+  message: "Passwords must match.",
+  path: ["confirmPassword"]
 });
 
 export const passwordResetRequestSchema = z.object({
