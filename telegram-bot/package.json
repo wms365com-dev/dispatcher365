@@ -1,0 +1,20 @@
+{
+  "name": "ship365-telegram-controller",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram webhook controller for the ship365.co project",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "execa": "^5.1.1",
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}

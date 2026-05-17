@@ -1,0 +1,7 @@
+.env
+node_modules/
+server.out.log
+server.err.log
+logs/*.json
+logs/*.txt
+!logs/commands.log
